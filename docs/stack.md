@@ -38,21 +38,6 @@ Flechas sólidas = tráfico o datos en el camino principal. Punteadas = el SPA l
 
 Todo esto corre en Kubernetes (Minikube local / K3s en Hostinger). Kustomize elige las diferencias de ambiente. Terraform solo crea el VPS, no el tráfico de la tienda.
 
-## Correspondencia de nombres
-
-Los directorios se renombraron respecto del diseño inicial. Es el único cambio estructural respecto de esa conversación:
-
-| Nombre original | Nombre actual | Rol |
-|---|---|---|
-| `catalog-service` | `catalog-api` | API de catálogo (Java / Spring Boot) |
-| `order-service` | `order-api` | API de pedidos (Java / Spring Boot) |
-| `payment-service` | `payment-api` | API de pagos (Java / Spring Boot) |
-| `backoffice-backend` | `panel-api` | API del panel de vendedor (Python / Django) |
-| `backoffice-frontend` | `panel-web` | Panel de vendedor (Angular) |
-| `main-frontend` | `client-web` | Tienda pública (React) |
-
-En la conversación también aparecieron `storefront-web` y `backoffice-api` / `backoffice-web` como nombres de diseño; en el código quedaron `client-web`, `panel-api` y `panel-web`.
-
 ## Cómo está organizado el repositorio
 
 | Proyecto | Responsabilidad |
