@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROFILE=${MINIKUBE_PROFILE:-friendly-e-shop}
+CPUS=${MINIKUBE_CPUS:-6}
+MEMORY=${MINIKUBE_MEMORY:-8192}
+
+docker info >/dev/null
+minikube start --profile "$PROFILE" --driver docker --cpus "$CPUS" --memory "$MEMORY"
+minikube --profile "$PROFILE" addons enable ingress
+minikube --profile "$PROFILE" addons enable metrics-server
+kubectl config use-context "$PROFILE" >/dev/null
+
+ip=$(minikube --profile "$PROFILE" ip)
+echo "Minikube node IP: $ip"
+echo "On macOS with the Docker driver, run 'minikube tunnel -p $PROFILE' and map the local names to 127.0.0.1."
+echo "127.0.0.1 shop.friendly-e-shop.local panel.friendly-e-shop.local api.friendly-e-shop.local grafana.friendly-e-shop.local"

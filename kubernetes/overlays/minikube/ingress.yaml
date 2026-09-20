@@ -1,0 +1,40 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: storefront, namespace: apps}
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: shop.friendly-e-shop.local
+      http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: client-web, port: {number: 8080}}}}]}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: panel, namespace: apps}
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: panel.friendly-e-shop.local
+      http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: panel-web, port: {number: 8080}}}}]}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: api, namespace: apps}
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: api.friendly-e-shop.local
+      http:
+        paths:
+          - {path: /catalog, pathType: Prefix, backend: {service: {name: catalog-api, port: {number: 8080}}}}
+          - {path: /orders, pathType: Prefix, backend: {service: {name: order-api, port: {number: 8080}}}}
+          - {path: /payments, pathType: Prefix, backend: {service: {name: payment-api, port: {number: 8080}}}}
+          - {path: /panel, pathType: Prefix, backend: {service: {name: panel-api, port: {number: 8000}}}}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata: {name: local-tools, namespace: observability}
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: grafana.friendly-e-shop.local
+      http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: grafana, port: {number: 3000}}}}]}

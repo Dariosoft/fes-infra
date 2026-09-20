@@ -1,0 +1,6 @@
+enable_vps_provisioning = false
+plan                    = "REPLACE_WITH_HOSTINGER_PLAN_ID"
+data_center_id           = 0
+template_id              = 0
+hostname                 = "k3s.example.com"
+ssh_public_key           = "ssh-ed25519 REPLACE_ME"

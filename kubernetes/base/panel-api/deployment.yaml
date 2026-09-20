@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: panel-api
+  namespace: apps
+  labels: {app.kubernetes.io/name: panel-api, app.kubernetes.io/part-of: friendly-e-shop}
+spec:
+  replicas: 1
+  revisionHistoryLimit: 2
+  selector: {matchLabels: {app.kubernetes.io/name: panel-api}}
+  template:
+    metadata: {labels: {app.kubernetes.io/name: panel-api, app.kubernetes.io/part-of: friendly-e-shop}}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
+      initContainers:
+        - name: migrate
+          image: friendly-e-shop/panel-api:dev
+          command: [python, manage.py, migrate, --noinput]
+          envFrom: [{configMapRef: {name: panel-api-config}}]
+          env:
+            - {name: DATABASE_PASSWORD, valueFrom: {secretKeyRef: {name: app-secrets, key: panel-db-password}}}
+            - {name: DJANGO_SECRET_KEY, valueFrom: {secretKeyRef: {name: app-secrets, key: django-secret-key}}}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}, runAsUser: 10001}
+      containers:
+        - name: panel-api
+          image: friendly-e-shop/panel-api:dev
+          imagePullPolicy: IfNotPresent
+          ports: [{name: http, containerPort: 8000}]
+          envFrom: [{configMapRef: {name: panel-api-config}}]
+          env:
+            - {name: DATABASE_PASSWORD, valueFrom: {secretKeyRef: {name: app-secrets, key: panel-db-password}}}
+            - {name: DJANGO_SECRET_KEY, valueFrom: {secretKeyRef: {name: app-secrets, key: django-secret-key}}}
+          startupProbe: {httpGet: {path: /health/live, port: http}, failureThreshold: 30, periodSeconds: 5}
+          readinessProbe: {httpGet: {path: /health/ready, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /health/live, port: http}, periodSeconds: 20}
+          resources:
+            requests: {cpu: 75m, memory: 128Mi}
+            limits: {cpu: 400m, memory: 384Mi}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}, readOnlyRootFilesystem: true, runAsUser: 10001}
+          volumeMounts: [{name: tmp, mountPath: /tmp}]
+      volumes: [{name: tmp, emptyDir: {}}]
+---
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: panel-api-config, namespace: apps}
+data:
+  DATABASE_HOST: postgresql.platform.svc.cluster.local
+  DATABASE_PORT: "5432"
+  DATABASE_NAME: panel
+  DATABASE_USERNAME: panel
+  ALLOWED_HOSTS: "*"
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318
+  OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+  OTEL_RESOURCE_ATTRIBUTES: deployment.environment=base,service.namespace=friendly-e-shop

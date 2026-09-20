@@ -1,0 +1,16 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: platform-ingress, namespace: platform}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: apps}}
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: platform}}
+      ports:
+        - {protocol: TCP, port: 5432}
+        - {protocol: TCP, port: 5672}
+        - {protocol: TCP, port: 9000}
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: observability}}

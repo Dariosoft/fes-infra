@@ -1,0 +1,12 @@
+tap "hashicorp/tap"
+
+brew "kubectl"
+brew "minikube"
+brew "helm"
+brew "kustomize"
+brew "kubeconform"
+brew "sops"
+brew "age"
+brew "minio-mc"
+brew "jq"
+brew "hashicorp/tap/terraform"

@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - secrets.placeholder.yaml
+  - ingress.yaml
+  - network-policy.yaml
+  - cert-manager.yaml
+patches:
+  - path: otel-config-patch.yaml
+  - path: otel-deployment-patch.yaml
+images:
+  - {name: friendly-e-shop/catalog-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/catalog-api, newTag: 0.1.0}
+  - {name: friendly-e-shop/order-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/order-api, newTag: 0.1.0}
+  - {name: friendly-e-shop/payment-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/payment-api, newTag: 0.1.0}
+  - {name: friendly-e-shop/client-web, newName: ghcr.io/REPLACE_GITHUB_OWNER/client-web, newTag: 0.1.0}
+  - {name: friendly-e-shop/panel-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/panel-api, newTag: 0.1.0}
+  - {name: friendly-e-shop/panel-web, newName: ghcr.io/REPLACE_GITHUB_OWNER/panel-web, newTag: 0.1.0}
+  - {name: friendly-e-shop/minio, newName: ghcr.io/REPLACE_GITHUB_OWNER/minio, newTag: RELEASE.2025-10-15T17-29-55Z}
