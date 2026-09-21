@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: bootstrap doctor minikube-create images-build deploy status smoke-test observability backup restore validate destroy
+.PHONY: bootstrap doctor minikube-create images-build deploy status smoke-test tunnel observability backup restore validate destroy
 
 bootstrap:
 	./scripts/bootstrap.sh
@@ -22,6 +22,9 @@ status:
 
 smoke-test:
 	./scripts/smoke-test.sh
+
+tunnel:
+	minikube tunnel --profile "$${MINIKUBE_PROFILE:-friendly-e-shop}"
 
 observability:
 	./scripts/observability.sh

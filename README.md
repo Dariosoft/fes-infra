@@ -46,6 +46,7 @@ kubectl -n platform port-forward service/minio 9001:9001
 | `make deploy` | Apply the Minikube overlay and wait for applications |
 | `make status` | Show pods, ingress and storage |
 | `make smoke-test` | Test public routes |
+| `make tunnel` | Expose local ingress routes until stopped with Ctrl+C |
 | `make observability` | Port-forward Grafana |
 | `make backup` | Back up PostgreSQL databases to MinIO |
 | `make validate` | Validate Kustomize and Terraform |
