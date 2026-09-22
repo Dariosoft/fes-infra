@@ -4,7 +4,7 @@ metadata: {name: storefront, namespace: apps}
 spec:
   ingressClassName: nginx
   rules:
-    - host: shop.friendly-e-shop.local
+    - host: shop.friendly-e-shop.test
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: client-web, port: {number: 8080}}}}]}
 ---
 apiVersion: networking.k8s.io/v1
@@ -13,7 +13,7 @@ metadata: {name: panel, namespace: apps}
 spec:
   ingressClassName: nginx
   rules:
-    - host: panel.friendly-e-shop.local
+    - host: panel.friendly-e-shop.test
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: panel-web, port: {number: 8080}}}}]}
 ---
 apiVersion: networking.k8s.io/v1
@@ -22,7 +22,7 @@ metadata: {name: api, namespace: apps}
 spec:
   ingressClassName: nginx
   rules:
-    - host: api.friendly-e-shop.local
+    - host: api.friendly-e-shop.test
       http:
         paths:
           - {path: /catalog, pathType: Prefix, backend: {service: {name: catalog-api, port: {number: 8080}}}}
@@ -36,5 +36,5 @@ metadata: {name: local-tools, namespace: observability}
 spec:
   ingressClassName: nginx
   rules:
-    - host: grafana.friendly-e-shop.local
+    - host: grafana.friendly-e-shop.test
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: grafana, port: {number: 3000}}}}]}

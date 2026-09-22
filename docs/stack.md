@@ -284,7 +284,7 @@ Las apps locales se taguean `friendly-e-shop/<servicio>:dev`. MinIO se construye
 | Tecnología | Versión | Función en este proyecto | Documentación |
 |---|---|---|---|
 | **nginx** | `1.30.5` (imagen unprivileged) | Sirve el SPA, `/healthz` y fallback `try_files … /index.html` | [nginx](https://nginx.org/en/docs/) |
-| **Vite `VITE_API_BASE_URL`** | build-arg, default `http://api.friendly-e-shop.local` | URL de las APIs embebida en el storefront | [Env de Vite](https://vite.dev/guide/env-and-mode.html) |
+| **Vite `VITE_API_BASE_URL`** | build-arg, default `http://api.friendly-e-shop.test` | URL de las APIs embebida en el storefront | [Env de Vite](https://vite.dev/guide/env-and-mode.html) |
 | **@types/react / @types/react-dom** | `19.3.0` | Tipings de React para TypeScript | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) |
 | **@angular/common, compiler, core, platform-browser, router** | `21.2.23` | Runtime Angular (el router está declarado; el shell todavía no lo usa) | [Angular](https://angular.dev/overview) |
 | **CSS** | `src/styles.css` + `inlineStyleLanguage: css` | Estilos del panel | [Estilos en Angular](https://angular.dev/guide/templates/style-binding) |

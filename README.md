@@ -21,10 +21,10 @@ Local endpoints:
 
 | Endpoint | URL |
 |---|---|
-| Storefront | http://shop.friendly-e-shop.local |
-| Seller panel | http://panel.friendly-e-shop.local |
-| API | http://api.friendly-e-shop.local |
-| Grafana | http://grafana.friendly-e-shop.local |
+| Storefront | http://shop.friendly-e-shop.test |
+| Seller panel | http://panel.friendly-e-shop.test |
+| API | http://api.friendly-e-shop.test |
+| Grafana | http://grafana.friendly-e-shop.test |
 
 On macOS with Docker Desktop, run `minikube tunnel -p friendly-e-shop` and map the four local names to `127.0.0.1` in `/etc/hosts`. `make smoke-test` uses a temporary port-forward and does not require either step. Grafana development credentials are `admin` / `grafana-local`.
 
