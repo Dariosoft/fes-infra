@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
 PROFILE=${MINIKUBE_PROFILE:-friendly-e-shop}
-services=(catalog-api order-api payment-api client-web panel-api panel-web)
+services=(account-api catalog-api order-api payment-api client-web panel-api panel-web)
 
 if [ "$(minikube --profile "$PROFILE" status --format '{{.Host}}')" != "Running" ]; then
   echo "Minikube profile '$PROFILE' is not running. Run make minikube-create first." >&2

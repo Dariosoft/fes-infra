@@ -10,6 +10,7 @@ patches:
   - path: otel-config-patch.yaml
   - path: otel-deployment-patch.yaml
 images:
+  - {name: friendly-e-shop/account-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/account-api, newTag: 0.1.0}
   - {name: friendly-e-shop/catalog-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/catalog-api, newTag: 0.1.0}
   - {name: friendly-e-shop/order-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/order-api, newTag: 0.1.0}
   - {name: friendly-e-shop/payment-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/payment-api, newTag: 0.1.0}

@@ -13,4 +13,9 @@ curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.
 curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/orders" >/dev/null
 curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/payments" >/dev/null
 curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/panel" >/dev/null
+echo "Checking account service availability"
+if ! curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/accounts" >/dev/null; then
+  echo "account service is not available" >&2
+  exit 1
+fi
 echo "Smoke tests passed"

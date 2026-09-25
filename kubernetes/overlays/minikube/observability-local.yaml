@@ -11,6 +11,7 @@ data:
         metrics_path: /actuator/prometheus
         static_configs:
           - targets:
+              - account-api.apps.svc.cluster.local:8080
               - catalog-api.apps.svc.cluster.local:8080
               - order-api.apps.svc.cluster.local:8080
               - payment-api.apps.svc.cluster.local:8080

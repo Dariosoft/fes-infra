@@ -42,7 +42,7 @@ kubectl -n platform port-forward service/minio 9001:9001
 | `make bootstrap` | Install required CLI tools with Homebrew |
 | `make doctor` | Verify tools and Docker |
 | `make minikube-create` | Create the local cluster and addons |
-| `make images-build` | Build all six application images inside Minikube |
+| `make images-build` | Build all seven application images inside Minikube |
 | `make deploy` | Apply the Minikube overlay and wait for applications |
 | `make status` | Show pods, ingress and storage |
 | `make smoke-test` | Test public routes |

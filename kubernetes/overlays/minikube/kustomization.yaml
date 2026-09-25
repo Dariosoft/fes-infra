@@ -13,3 +13,8 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/imagePullPolicy
         value: Never
+  - target: {group: apps, version: v1, kind: Deployment, name: panel-api, namespace: apps}
+    patch: |-
+      - op: add
+        path: /spec/template/spec/initContainers/0/imagePullPolicy
+        value: Never

@@ -25,6 +25,7 @@ spec:
     - host: api.friendly-e-shop.test
       http:
         paths:
+          - {path: /accounts, pathType: Prefix, backend: {service: {name: account-api, port: {number: 8080}}}}
           - {path: /catalog, pathType: Prefix, backend: {service: {name: catalog-api, port: {number: 8080}}}}
           - {path: /orders, pathType: Prefix, backend: {service: {name: order-api, port: {number: 8080}}}}
           - {path: /payments, pathType: Prefix, backend: {service: {name: payment-api, port: {number: 8080}}}}

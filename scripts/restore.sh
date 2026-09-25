@@ -8,7 +8,7 @@ fi
 
 DATABASE=$1
 OBJECT=$2
-case "$DATABASE" in catalog|orders|payments|panel) ;; *) echo "Unsupported database" >&2; exit 1 ;; esac
+case "$DATABASE" in accounts|catalog|orders|payments|panel) ;; *) echo "Unsupported database" >&2; exit 1 ;; esac
 
 PORT=${MINIO_FORWARD_PORT:-19000}
 USER=$(kubectl -n platform get secret platform-secrets -o jsonpath='{.data.minio-root-user}' | openssl base64 -d -A)
