@@ -17,7 +17,7 @@ flowchart TB
 
   ingress -->|"shop.* → HTML/JS de la tienda"| clientWeb["client-web<br/>storefront React"]
   ingress -->|"panel.* → HTML/JS del vendedor"| panelWeb["panel-web<br/>panel Angular"]
-  ingress -->|"/catalog /orders /payments"| apisJava["APIs Java<br/>catálogo, pedidos y pagos"]
+  ingress -->|"/accounts /catalog /orders /payments"| apisJava["APIs Java<br/>cuentas, catálogo, pedidos y pagos"]
   ingress -->|"/panel"| panelApi["panel-api<br/>tiendas y API del vendedor"]
 
   clientWeb -.->|"el navegador pide productos y checkout"| apisJava
@@ -42,6 +42,7 @@ Todo esto corre en Kubernetes (Minikube local / K3s en Hostinger). Kustomize eli
 
 | Proyecto | Responsabilidad |
 |---|---|
+| `account-api` | Cuentas |
 | `catalog-api` | Productos, precios y stock inicial |
 | `order-api` | Pedidos y estado de compra acordado |
 | `payment-api` | Intentos de pago e idempotencia |
@@ -58,7 +59,7 @@ Los recursos de Kubernetes se separan en los namespaces `apps`, `platform` y `ob
 
 | Tecnología | Versión | Función en este proyecto | Documentación |
 |---|---|---|---|
-| **Java** | 25 LTS (`java.version` en los `pom.xml`) | Lenguaje de `catalog-api`, `order-api` y `payment-api` | [Java 25](https://docs.oracle.com/en/java/javase/25/) |
+| **Java** | 25 LTS (`java.version` en los `pom.xml`) | Lenguaje de `account-api`, `catalog-api`, `order-api` y `payment-api` | [Java 25](https://docs.oracle.com/en/java/javase/25/) |
 | **Eclipse Temurin** | JRE `25.0.4_7` sobre Ubuntu Noble; imagen de build `maven:3.9.16-eclipse-temurin-25-noble` | Compila y ejecuta los JAR de Spring Boot | [Adoptium / Temurin](https://adoptium.net/docs/) |
 | **Python** | `3.14.7` (`python:3.14.7-slim-trixie`) | Runtime de `panel-api` | [Python 3.14](https://docs.python.org/3.14/) |
 | **TypeScript** | `5.9.3` | Tipado de `client-web` y `panel-web` | [TypeScript](https://www.typescriptlang.org/docs/) |
@@ -73,8 +74,8 @@ Los recursos de Kubernetes se separan en los namespaces `apps`, `platform` y `ob
 
 | Tecnología | Versión | Función en este proyecto | Documentación |
 |---|---|---|---|
-| **Spring Boot** | `4.1.1` (BOM padre) | Arranque, configuración, Actuator, JPA y AMQP de las tres APIs Java | [Spring Boot](https://docs.spring.io/spring-boot/) |
-| **Spring Web** (`spring-boot-starter-web`) | via Boot `4.1.1` | Controladores HTTP en `/catalog`, `/orders` y `/payments` | [Spring Web MVC](https://docs.spring.io/spring-framework/reference/web/webmvc.html) |
+| **Spring Boot** | `4.1.1` (BOM padre) | Arranque, configuración, Actuator, JPA y AMQP de las APIs Java | [Spring Boot](https://docs.spring.io/spring-boot/) |
+| **Spring Web** (`spring-boot-starter-web`) | via Boot `4.1.1` | Controladores HTTP en `/accounts`, `/catalog`, `/orders` y `/payments` | [Spring Web MVC](https://docs.spring.io/spring-framework/reference/web/webmvc.html) |
 | **Apache Tomcat** (embebido) | el que trae Spring Boot Web | Servidor HTTP del JAR ejecutable | [Apache Tomcat](https://tomcat.apache.org/tomcat-11.0-doc/) |
 | **Jackson** | el que trae Spring Boot Web | Serialización JSON de las respuestas REST | [Jackson](https://github.com/FasterXML/jackson-docs) |
 | **Spring Data JPA** | via Boot `4.1.1` | Capa de persistencia; `ddl-auto: validate` contra el esquema migrado | [Spring Data JPA](https://docs.spring.io/spring-data/jpa/reference/) |
@@ -98,7 +99,7 @@ La conversación de diseño pidió **una instancia PostgreSQL con bases y usuari
 
 | Tecnología | Versión | Función en este proyecto | Documentación |
 |---|---|---|---|
-| **PostgreSQL** | `postgres:18.4-alpine3.24` | Única instancia; bases `catalog`, `orders`, `payments` y `panel` con usuarios propios | [PostgreSQL 18](https://www.postgresql.org/docs/18/) |
+| **PostgreSQL** | `postgres:18.4-alpine3.24` | Única instancia; bases `accounts`, `catalog`, `orders`, `payments` y `panel` con usuarios propios | [PostgreSQL 18](https://www.postgresql.org/docs/18/) |
 | **PostgreSQL JDBC** | driver `org.postgresql:postgresql` (BOM de Spring) | Conexión `jdbc:postgresql://...` desde las APIs Java | [PostgreSQL JDBC](https://jdbc.postgresql.org/documentation/) |
 | **JDBC** | API de Java SE | Contrato de acceso SQL usado por Spring / Hibernate | [JDBC](https://docs.oracle.com/en/java/javase/25/docs/api/java.sql/java/sql/package-summary.html) |
 | **psycopg** (binario) | `3.3.6` (`psycopg[binary]`) | Driver PostgreSQL de Django | [psycopg 3](https://www.psycopg.org/psycopg3/docs/) |
@@ -174,14 +175,14 @@ La conversación separó responsabilidades: **Kustomize configura lo que vive de
 | **minikube tunnel** | driver Docker en macOS | Expone LoadBalancer/Ingress en `127.0.0.1` | [Acceso LoadBalancer](https://minikube.sigs.k8s.io/docs/handbook/accessing/) |
 | **K3s** | `v1.35.2+k3s1` con `--secrets-encryption` | Kubernetes liviano de un nodo en el VPS Hostinger | [K3s](https://docs.k3s.io/) |
 | **Kustomize** | CLI del Brewfile | Base + overlays `minikube` / `hostinger` (imágenes, Ingress, secretos, OTEL) | [Kustomize](https://kubernetes.io/docs/tasks/manage-kubernetes-objects/kustomization/) |
-| **Docker** | Docker Desktop (driver de Minikube y builds) | Imágenes multi-stage de las seis apps y MinIO | [Docker](https://docs.docker.com/) |
+| **Docker** | Docker Desktop (driver de Minikube y builds) | Imágenes multi-stage de las siete apps y MinIO | [Docker](https://docs.docker.com/) |
 | **Builds multi-stage** | Dockerfiles de cada app | Separa compile (Maven/Node/Go) del runtime mínimo | [Multi-stage builds](https://docs.docker.com/build/building/multi-stage/) |
 | **Terraform** | `= 1.16.3` | IaC del VPS Hostinger, SSH y script post-install; `apply` no corre en el bootstrap | [Terraform](https://developer.hashicorp.com/terraform/docs) |
 | **Provider Hostinger** | `hostinger/hostinger` `= 0.1.23` | Recurso de VPS, llave SSH y script de bootstrap K3s | [Provider Hostinger](https://registry.terraform.io/providers/hostinger/hostinger/latest/docs) |
 | **Hostinger VPS** | plantilla (provisioning desactivado por defecto) | Destino público de un nodo en Brasil; `prevent_destroy` para no cancelar la suscripción por error | [VPS Hostinger](https://www.hostinger.com/tutorials/vps) |
 | **Ubuntu LTS** | template_id del VPS (placeholder) | Sistema operativo del servidor Hostinger | [Ubuntu Server](https://documentation.ubuntu.com/server/) |
 | **Namespaces** | `apps`, `platform`, `observability` | Aislamiento lógico; Pod Security `baseline` | [Namespaces](https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/) |
-| **Deployment** | `apps/v1` | Workloads stateless de las seis apps y del stack de observabilidad | [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) |
+| **Deployment** | `apps/v1` | Workloads stateless de las siete apps y del stack de observabilidad | [Deployment](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) |
 | **StatefulSet** | PostgreSQL, RabbitMQ, MinIO | Identidad estable y PVC para datos | [StatefulSet](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) |
 | **Service** | ClusterIP / headless | DNS interno (`*.svc.cluster.local`) | [Service](https://kubernetes.io/docs/concepts/services-networking/service/) |
 | **initContainer** | `migrate` en `panel-api` | Aplica migraciones Django antes de levantar Gunicorn | [Init Containers](https://kubernetes.io/docs/concepts/workloads/pods/init-containers/) |
@@ -198,7 +199,7 @@ La conversación separó responsabilidades: **Kustomize configura lo que vive de
 
 | Tecnología | Versión / detalle | Función en este proyecto | Documentación |
 |---|---|---|---|
-| **Ingress** | hosts `shop`, `panel`, `api` (y `grafana` en Minikube); paths `/catalog`, `/orders`, `/payments`, `/panel` | Enrutado HTTP público por host y path | [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) |
+| **Ingress** | hosts `shop`, `panel`, `api` (y `grafana` en Minikube); paths `/accounts`, `/catalog`, `/orders`, `/payments`, `/panel` | Enrutado HTTP público por host y path | [Ingress](https://kubernetes.io/docs/concepts/services-networking/ingress/) |
 | **Ingress NGINX** | addon `ingress` de Minikube (`ingressClassName: nginx`) | Controlador de ingreso local | [ingress-nginx](https://kubernetes.github.io/ingress-nginx/) |
 | **Traefik** | el que trae K3s (`ingressClassName: traefik`) | Controlador de ingreso en Hostinger | [Traefik Kubernetes Ingress](https://doc.traefik.io/traefik/providers/kubernetes-ingress/) |
 | **NetworkPolicy** | API `networking.k8s.io` | Restringe tráfico hacia plataforma, observabilidad y apps | [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) |
@@ -273,7 +274,7 @@ Las apps locales se taguean `friendly-e-shop/<servicio>:dev`. MinIO se construye
 | **tslib** | `2.8.1` | Helpers de TypeScript (`importHelpers`) en Angular | [tslib](https://www.typescriptlang.org/tsconfig/#importHelpers) |
 | **pip** | el de la imagen Python | Instala `requirements.txt` | [pip](https://pip.pypa.io/en/stable/) |
 | **Go toolchain** | `1.24.8`, `CGO_ENABLED=0` | Binario estático de MinIO | [go install](https://go.dev/ref/mod#go-install) |
-| **minikube image build** | `infra/scripts/images-build.sh` | Construye las seis apps + MinIO dentro del daemon de Minikube | [minikube image](https://minikube.sigs.k8s.io/docs/commands/image/) |
+| **minikube image build** | `infra/scripts/images-build.sh` | Construye las siete apps + MinIO dentro del daemon de Minikube | [minikube image](https://minikube.sigs.k8s.io/docs/commands/image/) |
 
 `JAVA_TOOL_OPTIONS` fija `-XX:MaxRAMPercentage=75` y `-XX:+UseContainerSupport` para respetar el cgroup del pod.
 
@@ -320,7 +321,7 @@ Los frontends no hablan con Loki/Prometheus: la conversación dejó explícito q
 | **kubeconform** | `infra/scripts/validate.sh` | Valida el YAML renderizado por Kustomize contra el schema de Kubernetes | [kubeconform](https://github.com/yannh/kubeconform) |
 | **`terraform validate` / `fmt -check`** | `validate.sh` | Comprueba el módulo Hostinger sin aplicar | [terraform validate](https://developer.hashicorp.com/terraform/cli/commands/validate) |
 | **curl** | smoke tests y descargas del agent OTEL | HTTP de Ingress y artefactos | [curl](https://curl.se/docs/) |
-| **`make smoke-test`** | `infra/scripts/smoke-test.sh` | Storefront, panel y rutas `/catalog`, `/orders`, `/payments`, `/panel` | ver [`validation.md`](validation.md) |
+| **`make smoke-test`** | `infra/scripts/smoke-test.sh` | Storefront, panel y rutas `/accounts`, `/catalog`, `/orders`, `/payments`, `/panel` | ver [`validation.md`](validation.md) |
 
 ---
 
@@ -342,7 +343,7 @@ Scripts en `infra/scripts/`:
 | `bootstrap.sh` | `brew bundle` del Brewfile |
 | `doctor.sh` | Comprueba docker, kubectl, minikube, kustomize, kubeconform, terraform, sops, age, mc y curl |
 | `minikube-create.sh` | Crea el perfil y habilita ingress + metrics-server |
-| `images-build.sh` | Build de las seis apps + MinIO en Minikube |
+| `images-build.sh` | Build de las siete apps + MinIO en Minikube |
 | `deploy.sh` | `kubectl apply -k` del overlay minikube y espera rollouts |
 | `status.sh` | Pods, Ingress y PVC |
 | `smoke-test.sh` | HTTP de las rutas públicas |

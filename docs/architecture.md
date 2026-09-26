@@ -1,9 +1,10 @@
 # Architecture
 
-Friendly E-Shop uses six independently deployable applications and one infrastructure repository.
+Friendly E-Shop uses seven independently deployable applications and one infrastructure repository.
 
 | Component | Runtime | Responsibility |
 |---|---|---|
+| account-api | Java 25 / Spring Boot | Accounts |
 | catalog-api | Java 25 / Spring Boot | Products, prices and initial stock |
 | order-api | Java 25 / Spring Boot | Orders and agreed purchase state |
 | payment-api | Java 25 / Spring Boot | Payment attempts and idempotency |

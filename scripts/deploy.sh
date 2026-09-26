@@ -12,6 +12,7 @@ kubectl -n observability rollout status deployment/prometheus --timeout=300s
 kubectl -n observability rollout status deployment/loki --timeout=300s
 kubectl -n observability rollout status deployment/tempo --timeout=300s
 kubectl -n observability rollout status deployment/grafana --timeout=300s
+kubectl -n apps rollout status deployment/account-api --timeout=300s
 kubectl -n apps rollout status deployment/catalog-api --timeout=300s
 kubectl -n apps rollout status deployment/order-api --timeout=300s
 kubectl -n apps rollout status deployment/payment-api --timeout=300s

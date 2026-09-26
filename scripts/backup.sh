@@ -14,7 +14,7 @@ sleep 3
 mc alias set friendly "http://127.0.0.1:$PORT" "$USER" "$PASSWORD" >/dev/null
 mc mb --ignore-existing friendly/backups >/dev/null
 
-for database in catalog orders payments panel; do
+for database in accounts catalog orders payments panel; do
   echo "Backing up $database"
   kubectl -n platform exec postgresql-0 -- pg_dump -U postgres -Fc "$database" | mc pipe "friendly/backups/${database}-${STAMP}.dump"
 done
