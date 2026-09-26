@@ -30,6 +30,12 @@
       "sourceType": "github",
       "skillPath": "plugins/cloud-infrastructure/skills/terraform-module-library/SKILL.md",
       "computedHash": "0cef0ea4f217dd30f7b3b22aeac2a3bbdfa0649e3b7fcece5d5fb0ea87306647"
+    },
+    "terraform-style-guide": {
+      "source": "hashicorp/agent-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/terraform/skills/terraform-style-guide/SKILL.md",
+      "computedHash": "3b914c5ae01a7101d45b5222fbc38e0be6eb7412deba5f54d471905f22af70c6"
     }
   }
 }
