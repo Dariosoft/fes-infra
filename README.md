@@ -21,12 +21,12 @@ Local endpoints:
 
 | Endpoint | URL |
 |---|---|
-| Storefront | http://shop.friendly-e-shop.test |
-| Seller panel | http://panel.friendly-e-shop.test |
-| API | http://api.friendly-e-shop.test |
+| Storefront | https://market.friendly-e-shop.duckdns.org |
+| Seller panel | https://panel.friendly-e-shop.duckdns.org |
+| API | https://api.friendly-e-shop.duckdns.org |
 | Grafana | http://grafana.friendly-e-shop.test |
 
-On macOS with Docker Desktop, run `minikube tunnel -p friendly-e-shop` and map the four local names to `127.0.0.1` in `/etc/hosts`. `make smoke-test` uses a temporary port-forward and does not require either step. Grafana development credentials are `admin` / `grafana-local`.
+On macOS with Docker Desktop, run `minikube tunnel -p friendly-e-shop` and map `market.friendly-e-shop.duckdns.org`, `panel.friendly-e-shop.duckdns.org`, `api.friendly-e-shop.duckdns.org` and `grafana.friendly-e-shop.test` to `127.0.0.1` in `/etc/hosts`. `make smoke-test` uses a temporary port-forward and does not require either step. Grafana development credentials are `admin` / `grafana-local`. The DuckDNS certificate installed by `make deploy` is local; the browser will ask before trusting HTTPS.
 
 RabbitMQ and MinIO management interfaces remain internal. Access them with port forwarding:
 

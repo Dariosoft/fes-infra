@@ -14,4 +14,4 @@ kubectl config use-context "$PROFILE" >/dev/null
 ip=$(minikube --profile "$PROFILE" ip)
 echo "Minikube node IP: $ip"
 echo "On macOS with the Docker driver, run 'minikube tunnel -p $PROFILE' and map the local names to 127.0.0.1."
-echo "127.0.0.1 shop.friendly-e-shop.test panel.friendly-e-shop.test api.friendly-e-shop.test grafana.friendly-e-shop.test"
+echo "127.0.0.1 market.friendly-e-shop.duckdns.org panel.friendly-e-shop.duckdns.org api.friendly-e-shop.duckdns.org grafana.friendly-e-shop.test"

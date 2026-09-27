@@ -7,14 +7,14 @@ forward_pid=$!
 trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
 sleep 3
 
-curl --fail --silent --show-error --resolve "shop.friendly-e-shop.test:$PORT:127.0.0.1" "http://shop.friendly-e-shop.test:$PORT/" >/dev/null
-curl --fail --silent --show-error --resolve "panel.friendly-e-shop.test:$PORT:127.0.0.1" "http://panel.friendly-e-shop.test:$PORT/" >/dev/null
-curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/catalog" >/dev/null
-curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/orders" >/dev/null
-curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/payments" >/dev/null
-curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/panel" >/dev/null
+curl --fail --silent --show-error --resolve "market.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://market.friendly-e-shop.duckdns.org:$PORT/" >/dev/null
+curl --fail --silent --show-error --resolve "panel.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://panel.friendly-e-shop.duckdns.org:$PORT/" >/dev/null
+curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/catalog" >/dev/null
+curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/orders" >/dev/null
+curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/payments" >/dev/null
+curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/panel" >/dev/null
 echo "Checking account service availability"
-if ! curl --fail --silent --show-error --resolve "api.friendly-e-shop.test:$PORT:127.0.0.1" "http://api.friendly-e-shop.test:$PORT/accounts" >/dev/null; then
+if ! curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/accounts" >/dev/null; then
   echo "account service is not available" >&2
   exit 1
 fi

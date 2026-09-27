@@ -74,14 +74,14 @@ Publicar `account-api` en la puerta pública de API (`api.*` + `/accounts`) y ca
 
 1. En el overlay Hostinger (y cualquier overlay futuro con dominio distinto), inyectar:
    - `SESSION_COOKIE_DOMAIN=.<dominio-padre>`
-2. Con el placeholder actual del repo: `.REPLACE_BASE_DOMAIN` (punto inicial + dominio padre sustituible), coherente con `shop.REPLACE_BASE_DOMAIN` / `panel.REPLACE_BASE_DOMAIN` / `api.REPLACE_BASE_DOMAIN` del Ingress.
+2. Con el placeholder actual del repo: `.REPLACE_BASE_DOMAIN` (punto inicial + dominio padre sustituible), coherente con `market.REPLACE_BASE_DOMAIN` / `panel.REPLACE_BASE_DOMAIN` / `api.REPLACE_BASE_DOMAIN` del Ingress.
 3. El nombre concreto del dominio real no se fija en este plan; lo sustituye el operador al preparar Hostinger (`docs/hostinger.md`).
 
 ### 7. Orígenes de navegador `BROWSER_ORIGINS` (RF-7)
 
 1. Entregar a `account-api` `BROWSER_ORIGINS` como lista separada por comas de orígenes **completos con esquema**, correspondientes a `shop.*` y `panel.*` del mismo entorno:
-   - **Minikube (HTTP):** `http://shop.friendly-e-shop.test,http://panel.friendly-e-shop.test`
-   - **Hostinger (TLS en Ingress):** `https://shop.REPLACE_BASE_DOMAIN,https://panel.REPLACE_BASE_DOMAIN`
+   - **Minikube (HTTP):** `http://market.friendly-e-shop.test,http://panel.friendly-e-shop.test`
+   - **Hostinger (TLS en Ingress):** `https://market.REPLACE_BASE_DOMAIN,https://panel.REPLACE_BASE_DOMAIN`
 2. Misma técnica de patch por overlay que RF-5/RF-6; no mezclar orígenes locales en Hostinger ni al revés.
 3. No incluir el host `api.*` en esta lista salvo que una spec posterior lo pida; la spec actual pide solo tienda y panel.
 

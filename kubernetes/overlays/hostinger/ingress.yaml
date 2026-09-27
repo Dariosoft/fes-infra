@@ -7,16 +7,17 @@ metadata:
 spec:
   ingressClassName: traefik
   tls:
-    - hosts: [shop.REPLACE_BASE_DOMAIN, panel.REPLACE_BASE_DOMAIN, api.REPLACE_BASE_DOMAIN]
+    - hosts: [market.REPLACE_BASE_DOMAIN, panel.REPLACE_BASE_DOMAIN, api.REPLACE_BASE_DOMAIN]
       secretName: friendly-e-shop-tls
   rules:
-    - host: shop.REPLACE_BASE_DOMAIN
+    - host: market.REPLACE_BASE_DOMAIN
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: client-web, port: {number: 8080}}}}]}
     - host: panel.REPLACE_BASE_DOMAIN
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: panel-web, port: {number: 8080}}}}]}
     - host: api.REPLACE_BASE_DOMAIN
       http:
         paths:
+          - {path: /accounts, pathType: Prefix, backend: {service: {name: account-api, port: {number: 8080}}}}
           - {path: /catalog, pathType: Prefix, backend: {service: {name: catalog-api, port: {number: 8080}}}}
           - {path: /orders, pathType: Prefix, backend: {service: {name: order-api, port: {number: 8080}}}}
           - {path: /payments, pathType: Prefix, backend: {service: {name: payment-api, port: {number: 8080}}}}

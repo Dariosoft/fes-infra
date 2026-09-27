@@ -1,30 +1,49 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
-metadata: {name: storefront, namespace: apps}
+metadata:
+  name: storefront
+  namespace: apps
+  annotations: {nginx.ingress.kubernetes.io/ssl-redirect: "false"}
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts: [market.friendly-e-shop.duckdns.org]
+      secretName: friendly-e-shop-tls
   rules:
-    - host: shop.friendly-e-shop.test
+    - host: market.friendly-e-shop.duckdns.org
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: client-web, port: {number: 8080}}}}]}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
-metadata: {name: panel, namespace: apps}
+metadata:
+  name: panel
+  namespace: apps
+  annotations: {nginx.ingress.kubernetes.io/ssl-redirect: "false"}
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts: [panel.friendly-e-shop.duckdns.org]
+      secretName: friendly-e-shop-tls
   rules:
-    - host: panel.friendly-e-shop.test
+    - host: panel.friendly-e-shop.duckdns.org
       http: {paths: [{path: /, pathType: Prefix, backend: {service: {name: panel-web, port: {number: 8080}}}}]}
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
-metadata: {name: api, namespace: apps}
+metadata:
+  name: api
+  namespace: apps
+  annotations: {nginx.ingress.kubernetes.io/ssl-redirect: "false"}
 spec:
   ingressClassName: nginx
+  tls:
+    - hosts: [api.friendly-e-shop.duckdns.org]
+      secretName: friendly-e-shop-tls
   rules:
-    - host: api.friendly-e-shop.test
+    - host: api.friendly-e-shop.duckdns.org
       http:
         paths:
+          - {path: /accounts, pathType: Prefix, backend: {service: {name: account-api, port: {number: 8080}}}}
           - {path: /catalog, pathType: Prefix, backend: {service: {name: catalog-api, port: {number: 8080}}}}
           - {path: /orders, pathType: Prefix, backend: {service: {name: order-api, port: {number: 8080}}}}
           - {path: /payments, pathType: Prefix, backend: {service: {name: payment-api, port: {number: 8080}}}}

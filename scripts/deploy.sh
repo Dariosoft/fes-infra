@@ -2,7 +2,9 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+"$ROOT/scripts/minikube-tls.sh"
 kubectl apply -k "$ROOT/kubernetes/overlays/minikube"
+"$ROOT/scripts/load-google-oauth.sh"
 
 kubectl -n platform rollout status statefulset/postgresql --timeout=300s
 kubectl -n platform rollout status statefulset/rabbitmq --timeout=300s

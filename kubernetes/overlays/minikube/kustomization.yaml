@@ -8,6 +8,8 @@ resources:
   - observability-local.yaml
 patches:
   - path: otel-config-patch.yaml
+  - path: account-api-env-patch.yaml
+  - path: panel-api-env-patch.yaml
   - target: {group: apps, version: v1, kind: Deployment, namespace: apps}
     patch: |-
       - op: replace
