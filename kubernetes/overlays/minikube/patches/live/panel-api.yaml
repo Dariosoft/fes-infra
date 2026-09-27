@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: panel-api
+  namespace: apps
+spec:
+  template:
+    spec:
+      initContainers:
+        - name: migrate
+          image: friendly-e-shop/panel-api:live
+          volumeMounts:
+            - {name: project, mountPath: /app/src, subPath: src, readOnly: true}
+      containers:
+        - name: panel-api
+          image: friendly-e-shop/panel-api:live
+          command: ["sh", "-c", "python src/manage.py migrate --noinput && exec python src/manage.py runserver 0.0.0.0:8000"]
+          securityContext:
+            readOnlyRootFilesystem: false
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}
+          startupProbe:
+            httpGet: {path: /health/live, port: http}
+            failureThreshold: 40
+            periodSeconds: 5
+          volumeMounts:
+            - {name: project, mountPath: /app/src, subPath: src, readOnly: true}
+      volumes:
+        - name: project
+          hostPath: {path: /friendly-e-shop/panel-api, type: Directory}

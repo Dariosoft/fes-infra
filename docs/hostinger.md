@@ -1,6 +1,6 @@
 # Hostinger Preparation
 
-The Hostinger overlay and Terraform code are templates and are not applied automatically.
+The Hostinger overlay and Terraform code are templates and are not applied automatically. Published GHCR tags belong to that overlay. Minikube does not pull them: `make deploy` mounts the local application checkouts and reloads frontends and backends from those files.
 
 Before deployment:
 

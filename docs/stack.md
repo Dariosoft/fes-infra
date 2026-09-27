@@ -344,7 +344,7 @@ Scripts en `infra/scripts/`:
 | `doctor.sh` | Comprueba docker, kubectl, minikube, kustomize, kubeconform, terraform, sops, age, mc y curl |
 | `minikube-create.sh` | Crea el perfil y habilita ingress + metrics-server |
 | `images-build.sh` | Build de las siete apps + MinIO en Minikube |
-| `deploy.sh` | `kubectl apply -k` del overlay minikube y espera rollouts |
+| `deploy.sh` | Monta los checkouts locales, aplica el overlay de Minikube y espera los rollouts. El código se sirve desde esas carpetas; `FORCE_LIVE_BUILD=1` reconstruye las imágenes `:live` tras un cambio de dependencias |
 | `status.sh` | Pods, Ingress y PVC |
 | `smoke-test.sh` | HTTP de las rutas públicas |
 | `observability.sh` | Port-forward de Grafana `:3000` |

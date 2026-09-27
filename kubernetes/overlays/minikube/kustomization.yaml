@@ -2,14 +2,30 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - ../../base
-  - secrets.yaml
-  - ingress.yaml
-  - network-policies.yaml
-  - observability-local.yaml
+  - resources/secrets.yaml
+  - resources/ingress.yaml
+  - resources/network-policies.yaml
+  - resources/observability-local.yaml
+configMapGenerator:
+  - name: java-dev-reload
+    namespace: apps
+    files:
+      - reload.sh=../../../scripts/java-dev-reload.sh
+    options:
+      disableNameSuffixHash: true
 patches:
-  - path: otel-config-patch.yaml
-  - path: account-api-env-patch.yaml
-  - path: panel-api-env-patch.yaml
+  - path: patches/otel-config-patch.yaml
+  - path: patches/account-api-env-patch.yaml
+  - path: patches/panel-api-env-patch.yaml
+  - path: patches/panel-api-image-pull.yaml
+  - path: patches/apps-namespace.yaml
+  - path: patches/live/panel-web.yaml
+  - path: patches/live/client-web.yaml
+  - path: patches/live/panel-api.yaml
+  - path: patches/live/account-api.yaml
+  - path: patches/live/catalog-api.yaml
+  - path: patches/live/order-api.yaml
+  - path: patches/live/payment-api.yaml
   - target: {group: apps, version: v1, kind: Deployment, namespace: apps}
     patch: |-
       - op: replace

@@ -16,7 +16,7 @@ spec:
       initContainers:
         - name: migrate
           image: friendly-e-shop/panel-api:dev
-          command: [python, manage.py, migrate, --noinput]
+          command: [python, src/manage.py, migrate, --noinput]
           envFrom: [{configMapRef: {name: panel-api-config}}]
           env:
             - {name: DATABASE_PASSWORD, valueFrom: {secretKeyRef: {name: app-secrets, key: panel-db-password}}}

@@ -18,7 +18,7 @@ minikube-create:
 images-build:
 	./scripts/images-build.sh
 
-# Deploys the Minikube Kubernetes overlay and waits for the applications.
+# Mounts local checkouts, applies the Minikube overlay, and waits for the applications.
 deploy:
 	./scripts/deploy.sh
 

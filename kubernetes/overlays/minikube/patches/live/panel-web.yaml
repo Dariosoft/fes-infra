@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: panel-web
+  namespace: apps
+spec:
+  template:
+    spec:
+      containers:
+        - name: panel-web
+          image: friendly-e-shop/panel-web:live
+          command: ["npm", "run", "start", "--", "--port", "8080", "--poll", "500", "--allowed-hosts"]
+          securityContext:
+            readOnlyRootFilesystem: false
+            runAsUser: 1000
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          startupProbe:
+            httpGet: {path: /, port: http}
+            failureThreshold: 40
+            periodSeconds: 5
+          readinessProbe: {httpGet: {path: /, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /, port: http}, periodSeconds: 20}
+          volumeMounts:
+            - {name: project, mountPath: /app/src, subPath: src, readOnly: true}
+            - {name: project, mountPath: /app/angular.json, subPath: angular.json, readOnly: true}
+            - {name: project, mountPath: /app/tsconfig.json, subPath: tsconfig.json, readOnly: true}
+            - {name: project, mountPath: /app/tsconfig.app.json, subPath: tsconfig.app.json, readOnly: true}
+            - {name: project, mountPath: /app/.postcssrc.json, subPath: .postcssrc.json, readOnly: true}
+      volumes:
+        - name: project
+          hostPath: {path: /friendly-e-shop/panel-web, type: Directory}

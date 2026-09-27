@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client-web
+  namespace: apps
+spec:
+  template:
+    spec:
+      containers:
+        - name: client-web
+          image: friendly-e-shop/client-web:live
+          command: ["npm", "run", "dev", "--", "--port", "8080", "--strictPort"]
+          env:
+            - {name: VITE_USE_POLLING, value: "true"}
+            - {name: VITE_API_BASE_URL, value: "https://api.friendly-e-shop.duckdns.org"}
+          securityContext:
+            readOnlyRootFilesystem: false
+            runAsUser: 1000
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {cpu: "1", memory: 1Gi}
+          startupProbe:
+            httpGet: {path: /, port: http}
+            failureThreshold: 40
+            periodSeconds: 5
+          readinessProbe: {httpGet: {path: /, port: http}, periodSeconds: 10}
+          livenessProbe: {httpGet: {path: /, port: http}, periodSeconds: 20}
+          volumeMounts:
+            - {name: project, mountPath: /app/src, subPath: src, readOnly: true}
+            - {name: project, mountPath: /app/index.html, subPath: index.html, readOnly: true}
+            - {name: project, mountPath: /app/vite.config.ts, subPath: vite.config.ts, readOnly: true}
+            - {name: project, mountPath: /app/tsconfig.json, subPath: tsconfig.json, readOnly: true}
+            - {name: project, mountPath: /app/tsconfig.app.json, subPath: tsconfig.app.json, readOnly: true}
+      volumes:
+        - name: project
+          hostPath: {path: /friendly-e-shop/client-web, type: Directory}
