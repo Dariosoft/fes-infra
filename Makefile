@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: bootstrap doctor minikube-create images-build deploy status smoke-test tunnel observability backup restore validate destroy
+.PHONY: bootstrap doctor minikube-create start stop images-build deploy status smoke-test tunnel observability backup restore validate destroy
 
 # Installs the required local CLI tools with Homebrew.
 bootstrap:
@@ -13,6 +13,14 @@ doctor:
 # Creates the Minikube cluster and enables its required addons.
 minikube-create:
 	./scripts/minikube-create.sh
+
+# Starts a stopped Minikube profile and mounts the local checkouts again.
+start:
+	./scripts/minikube-start.sh
+
+# Stops the Minikube profile, the source mount, and the tunnel. Disk data is kept.
+stop:
+	./scripts/minikube-stop.sh
 
 # Builds all application container images inside Minikube.
 images-build:

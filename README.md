@@ -41,6 +41,8 @@ kubectl -n platform port-forward service/minio 9001:9001
 | `make bootstrap` | Install required CLI tools with Homebrew |
 | `make doctor` | Verify tools and Docker |
 | `make minikube-create` | Create the local cluster and addons |
+| `make stop` | Stop the cluster, the source mount, and the tunnel. Disk data is kept |
+| `make start` | Start a stopped cluster and mount the local checkouts again |
 | `make images-build` | Build the production-style application images inside Minikube |
 | `make deploy` | Mount the local checkouts, apply the Minikube overlay, and wait for the applications |
 | `make status` | Show pods, ingress and storage |
