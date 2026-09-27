@@ -27,6 +27,7 @@ spec:
           livenessProbe: {httpGet: {path: /, port: http}, periodSeconds: 20}
           volumeMounts:
             - {name: project, mountPath: /app/src, subPath: src, readOnly: true}
+            - {name: project, mountPath: /app/public, subPath: public, readOnly: true}
             - {name: project, mountPath: /app/index.html, subPath: index.html, readOnly: true}
             - {name: project, mountPath: /app/vite.config.ts, subPath: vite.config.ts, readOnly: true}
             - {name: project, mountPath: /app/tsconfig.json, subPath: tsconfig.json, readOnly: true}

@@ -24,6 +24,7 @@ spec:
           livenessProbe: {httpGet: {path: /, port: http}, periodSeconds: 20}
           volumeMounts:
             - {name: project, mountPath: /app/src, subPath: src, readOnly: true}
+            - {name: project, mountPath: /app/public, subPath: public, readOnly: true}
             - {name: project, mountPath: /app/angular.json, subPath: angular.json, readOnly: true}
             - {name: project, mountPath: /app/tsconfig.json, subPath: tsconfig.json, readOnly: true}
             - {name: project, mountPath: /app/tsconfig.app.json, subPath: tsconfig.app.json, readOnly: true}
