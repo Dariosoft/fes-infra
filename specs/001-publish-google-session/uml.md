@@ -2,6 +2,8 @@
 
 Diagrama del despliegue **real** en la rama `001/feat-publish-google-session`: plano público Minikube con DuckDNS + TLS, Ingress `/accounts`, secretos Google y env por overlay.
 
+Los diagramas muestran relaciones operativas relevantes del despliegue y omiten dependencias transitivas o detalles repetidos cuando ya están explicados por un recurso dueño, overlay o manifiesto principal.
+
 ## Plano público Minikube (DuckDNS + TLS)
 
 ```mermaid
