@@ -18,8 +18,8 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar login ni lóg
 
 - [x] **T3. Publicar `/accounts` en el Ingress de Minikube sin tocar el resto de rutas**
   - Cubierta: RF-1, RF-2
-  - En `kubernetes/overlays/minikube/ingress.yaml`, en el Ingress `api` (`api.friendly-e-shop.test`), añadir path Prefix `/accounts` → Service `account-api` puerto `8080`, conservando `/catalog`, `/orders`, `/payments` y `/panel`.
-  - Done when: el manifiesto Minikube lista las cinco rutas en el mismo host `api.friendly-e-shop.test` y `/accounts` apunta a `account-api:8080`.
+  - En `kubernetes/overlays/minikube/resources/ingress.yaml`, en el Ingress `api` (`api.friendly-e-shop.duckdns.org` + TLS), añadir path Prefix `/accounts` → Service `account-api` puerto `8080`, conservando `/catalog`, `/orders`, `/payments` y `/panel`.
+  - Done when: el manifiesto Minikube lista las cinco rutas en el mismo host `api.friendly-e-shop.duckdns.org` y `/accounts` apunta a `account-api:8080`.
 
 - [x] **T4. Publicar `/accounts` en el Ingress de Hostinger y remap de imagen**
   - Cubierta: RF-1, RF-2
@@ -30,7 +30,7 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar login ni lóg
 
 - [x] **T5. Declarar keys Google de desarrollo en el secreto Minikube**
   - Cubierta: RF-9 (habilita RF-3, RF-4)
-  - En `kubernetes/overlays/minikube/secrets.yaml`, dentro de `app-secrets`, añadir `google-client-id` y `google-client-secret` con valores solo de laboratorio (placeholders locales explícitos, no credenciales reales de producción).
+  - En `kubernetes/overlays/minikube/resources/secrets.yaml`, dentro de `app-secrets`, añadir `google-client-id` y `google-client-secret` con valores solo de laboratorio (placeholders locales explícitos, no credenciales reales de producción).
   - Done when: `app-secrets` de Minikube contiene ambas keys y no se reutilizan fuera del overlay local.
 
 - [x] **T6. Declarar placeholders Google en Hostinger sin secreto real en claro**
@@ -52,18 +52,18 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar login ni lóg
 
 - [x] **T9. Patch Minikube: `SESSION_COOKIE_DOMAIN` local**
   - Cubierta: RF-5
-  - Añadir patch Kustomize en `kubernetes/overlays/minikube/` que entregue a `account-api` `SESSION_COOKIE_DOMAIN=.friendly-e-shop.test` (no fijar este valor en la base compartida).
-  - Done when: el build del overlay Minikube muestra `SESSION_COOKIE_DOMAIN=.friendly-e-shop.test` en el Deployment `account-api` y la base no lo fija.
+  - Añadir patch Kustomize en `kubernetes/overlays/minikube/patches/account-api-env-patch.yaml` que entregue a `account-api` `SESSION_COOKIE_DOMAIN=.friendly-e-shop.duckdns.org` y `SESSION_COOKIE_SECURE=true` (no fijar estos valores en la base compartida). RF-5 se cumple con el dominio padre del plano público DuckDNS.
+  - Done when: el build del overlay Minikube muestra `SESSION_COOKIE_DOMAIN=.friendly-e-shop.duckdns.org` y `SESSION_COOKIE_SECURE=true` en el Deployment `account-api` y la base no los fija.
 
 - [x] **T10. Patch Hostinger: `SESSION_COOKIE_DOMAIN` con dominio padre sustituible**
   - Cubierta: RF-6
   - Añadir patch en `kubernetes/overlays/hostinger/` con `SESSION_COOKIE_DOMAIN=.REPLACE_BASE_DOMAIN` (punto inicial + dominio padre).
   - Done when: el build Hostinger entrega `.REPLACE_BASE_DOMAIN` y no usa `.friendly-e-shop.test`.
 
-- [x] **T11. Patch Minikube: `BROWSER_ORIGINS` HTTP de tienda y panel**
+- [x] **T11. Patch Minikube: `BROWSER_ORIGINS` HTTPS de tienda y panel**
   - Cubierta: RF-7
-  - En el overlay Minikube, entregar `BROWSER_ORIGINS=http://market.friendly-e-shop.test,http://panel.friendly-e-shop.test` (orígenes completos con esquema, sin incluir `api.*`).
-  - Done when: el build Minikube muestra exactamente esos dos orígenes HTTP separados por coma en `account-api`.
+  - En el overlay Minikube (`patches/account-api-env-patch.yaml`), entregar `BROWSER_ORIGINS=https://market.friendly-e-shop.duckdns.org,https://panel.friendly-e-shop.duckdns.org` y `PUBLIC_API_BASE_URL=https://api.friendly-e-shop.duckdns.org` (orígenes completos con esquema; tienda = `market.*`, sin incluir `api.*` en `BROWSER_ORIGINS`).
+  - Done when: el build Minikube muestra exactamente esos dos orígenes HTTPS separados por coma y `PUBLIC_API_BASE_URL` en `account-api`.
 
 - [x] **T12. Patch Hostinger: `BROWSER_ORIGINS` HTTPS de tienda y panel**
   - Cubierta: RF-7
@@ -91,7 +91,7 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar login ni lóg
 
 - [ ] **T16. Prueba de humo local de rutas API (si Minikube está disponible)**
   - Cubierta: RF-1, RF-2
-  - Con el stack local desplegado, ejecutar `make smoke-test` y comprobar que `/accounts` responde vía `api.friendly-e-shop.test` y que `/catalog`, `/orders`, `/payments` y `/panel` siguen OK; opcionalmente inspeccionar env del pod `account-api` (`GOOGLE_*`, `SESSION_COOKIE_DOMAIN`, `BROWSER_ORIGINS`) y de `panel-api` (`ACCOUNT_API_BASE_URL`).
+  - Con el stack local desplegado, ejecutar `make smoke-test` y comprobar que `/accounts` responde vía `https://api.friendly-e-shop.duckdns.org` y que `/catalog`, `/orders`, `/payments` y `/panel` siguen OK; opcionalmente inspeccionar env del pod `account-api` (`GOOGLE_*`, `SESSION_COOKIE_DOMAIN`, `SESSION_COOKIE_SECURE`, `BROWSER_ORIGINS`, `PUBLIC_API_BASE_URL`) y de `panel-api` (`ACCOUNT_API_BASE_URL`, `PANEL_PUBLIC_ORIGIN`, `ACCOUNTS_PUBLIC_BASE_URL`).
   - Done when: `make smoke-test` pasa e incluye `/accounts` sin regresión en las rutas previas; si el clúster no está disponible, dejar constancia explícita y diferir solo esta verificación operativa.
   - Skipped: Minikube no está disponible (`minikube status` DOWN); smoke-test operativo diferido.
 
