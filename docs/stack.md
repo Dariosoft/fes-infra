@@ -343,8 +343,11 @@ Scripts en `infra/scripts/`:
 | `bootstrap.sh` | `brew bundle` del Brewfile |
 | `doctor.sh` | Comprueba docker, kubectl, minikube, kustomize, kubeconform, terraform, sops, age, mc y curl |
 | `minikube-create.sh` | Crea el perfil y habilita ingress + metrics-server |
+| `minikube-stop.sh` | Detiene el perfil, el montaje de código y el tunnel. Conserva discos e imágenes |
+| `minikube-start.sh` | Vuelve a arrancar un perfil detenido y monta los checkouts locales |
+| `ensure-minikube-mount.sh` | Deja el árbol local montado en el nodo si todavía no lo está |
 | `images-build.sh` | Build de las siete apps + MinIO en Minikube |
-| `deploy.sh` | `kubectl apply -k` del overlay minikube y espera rollouts |
+| `deploy.sh` | Monta los checkouts locales, aplica el overlay de Minikube y espera los rollouts. El código se sirve desde esas carpetas; `FORCE_LIVE_BUILD=1` reconstruye las imágenes `:live` tras un cambio de dependencias |
 | `status.sh` | Pods, Ingress y PVC |
 | `smoke-test.sh` | HTTP de las rutas públicas |
 | `observability.sh` | Port-forward de Grafana `:3000` |

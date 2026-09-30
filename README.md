@@ -10,7 +10,6 @@ Start Docker Desktop, then run:
 make bootstrap
 make doctor
 make minikube-create
-make images-build
 make deploy
 make smoke-test
 ```
@@ -21,12 +20,12 @@ Local endpoints:
 
 | Endpoint | URL |
 |---|---|
-| Storefront | http://shop.friendly-e-shop.test |
-| Seller panel | http://panel.friendly-e-shop.test |
-| API | http://api.friendly-e-shop.test |
+| Storefront | https://market.friendly-e-shop.duckdns.org |
+| Seller panel | https://panel.friendly-e-shop.duckdns.org |
+| API | https://api.friendly-e-shop.duckdns.org |
 | Grafana | http://grafana.friendly-e-shop.test |
 
-On macOS with Docker Desktop, run `minikube tunnel -p friendly-e-shop` and map the four local names to `127.0.0.1` in `/etc/hosts`. `make smoke-test` uses a temporary port-forward and does not require either step. Grafana development credentials are `admin` / `grafana-local`.
+On macOS with Docker Desktop, run `minikube tunnel -p friendly-e-shop` and map `market.friendly-e-shop.duckdns.org`, `panel.friendly-e-shop.duckdns.org`, `api.friendly-e-shop.duckdns.org` and `grafana.friendly-e-shop.test` to `127.0.0.1` in `/etc/hosts`. `make smoke-test` uses a temporary port-forward and does not require either step. Grafana development credentials are `admin` / `grafana-local`. The DuckDNS certificate installed by `make deploy` is local; the browser will ask before trusting HTTPS.
 
 RabbitMQ and MinIO management interfaces remain internal. Access them with port forwarding:
 
@@ -42,8 +41,10 @@ kubectl -n platform port-forward service/minio 9001:9001
 | `make bootstrap` | Install required CLI tools with Homebrew |
 | `make doctor` | Verify tools and Docker |
 | `make minikube-create` | Create the local cluster and addons |
-| `make images-build` | Build all seven application images inside Minikube |
-| `make deploy` | Apply the Minikube overlay and wait for applications |
+| `make stop` | Stop the cluster, the source mount, and the tunnel. Disk data is kept |
+| `make start` | Start a stopped cluster and mount the local checkouts again |
+| `make images-build` | Build the production-style application images inside Minikube |
+| `make deploy` | Mount the local checkouts, apply the Minikube overlay, and wait for the applications |
 | `make status` | Show pods, ingress and storage |
 | `make smoke-test` | Test public routes |
 | `make tunnel` | Expose local ingress routes until stopped with Ctrl+C |

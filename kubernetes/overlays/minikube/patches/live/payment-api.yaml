@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+  namespace: apps
+spec:
+  template:
+    spec:
+      containers:
+        - name: payment-api
+          image: friendly-e-shop/payment-api:live
+          command: ["/bin/sh", "/opt/dev-reload/reload.sh"]
+          securityContext:
+            readOnlyRootFilesystem: false
+          resources:
+            requests: {cpu: 200m, memory: 512Mi}
+            limits: {cpu: "1", memory: 1280Mi}
+          startupProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            failureThreshold: 60
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /actuator/health/liveness, port: http}
+            failureThreshold: 6
+            periodSeconds: 20
+          volumeMounts:
+            - {name: project, mountPath: /workspace/src, subPath: src, readOnly: true}
+            - {name: project, mountPath: /workspace/pom.xml, subPath: pom.xml, readOnly: true}
+            - {name: project, mountPath: /workspace/checkstyle.xml, subPath: checkstyle.xml, readOnly: true}
+            - {name: reload-script, mountPath: /opt/dev-reload, readOnly: true}
+      volumes:
+        - name: project
+          hostPath: {path: /friendly-e-shop/payment-api, type: Directory}
+        - name: reload-script
+          configMap: {name: java-dev-reload, defaultMode: 0555}

@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-api
+  namespace: apps
+spec:
+  template:
+    spec:
+      containers:
+        - name: account-api
+          env:
+            - name: SESSION_COOKIE_DOMAIN
+              value: .REPLACE_BASE_DOMAIN
+            - name: SESSION_COOKIE_SECURE
+              value: "true"
+            - name: BROWSER_ORIGINS
+              value: https://market.REPLACE_BASE_DOMAIN,https://panel.REPLACE_BASE_DOMAIN
+            - name: PUBLIC_API_BASE_URL
+              value: https://api.REPLACE_BASE_DOMAIN
