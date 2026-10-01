@@ -30,6 +30,10 @@ images-build:
 deploy:
 	./scripts/deploy.sh
 
+# Forces a redeploy of the LOCAL applications, even if the manifests have not changed.
+force-deploy:
+	FORCE_LIVE_BUILD=1 ./scripts/deploy.sh
+
 # Shows the current state of pods, ingress routes, and storage.
 status:
 	./scripts/status.sh
