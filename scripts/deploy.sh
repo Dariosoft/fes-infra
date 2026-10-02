@@ -44,6 +44,7 @@ fi
 kubectl --context "$PROFILE" -n platform rollout status statefulset/postgresql --timeout=300s
 kubectl --context "$PROFILE" -n platform rollout status statefulset/rabbitmq --timeout=300s
 kubectl --context "$PROFILE" -n platform rollout status statefulset/minio --timeout=300s
+"$ROOT/scripts/ensure-product-images-bucket.sh"
 kubectl --context "$PROFILE" -n observability rollout status deployment/otel-collector --timeout=300s
 kubectl --context "$PROFILE" -n observability rollout status deployment/prometheus --timeout=300s
 kubectl --context "$PROFILE" -n observability rollout status deployment/loki --timeout=300s

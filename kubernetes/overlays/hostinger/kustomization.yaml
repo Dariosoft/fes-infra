@@ -14,6 +14,7 @@ patches:
   - path: otel-config-patch.yaml
   - path: otel-deployment-patch.yaml
   - path: account-api-env-patch.yaml
+  - path: catalog-api-env-patch.yaml
   - path: panel-api-env-patch.yaml
 images:
   - {name: friendly-e-shop/account-api, newName: ghcr.io/REPLACE_GITHUB_OWNER/account-api, newTag: 0.1.0}

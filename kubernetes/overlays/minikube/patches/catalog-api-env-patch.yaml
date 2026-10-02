@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: catalog-api
+  namespace: apps
+spec:
+  template:
+    spec:
+      containers:
+        - name: catalog-api
+          env:
+            - name: PUBLIC_API_BASE_URL
+              value: https://api.friendly-e-shop.duckdns.org

@@ -15,7 +15,12 @@ configMapGenerator:
       disableNameSuffixHash: true
 patches:
   - path: patches/otel-config-patch.yaml
+  - path: patches/account-api-debug.yaml
   - path: patches/account-api-env-patch.yaml
+  - path: patches/catalog-api-env-patch.yaml
+  - path: patches/catalog-api-debug.yaml
+  - path: patches/order-api-debug.yaml
+  - path: patches/payment-api-debug.yaml
   - path: patches/panel-api-env-patch.yaml
   - path: patches/panel-api-image-pull.yaml
   - path: patches/apps-namespace.yaml

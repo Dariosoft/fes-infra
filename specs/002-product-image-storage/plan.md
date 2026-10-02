@@ -2,24 +2,24 @@
 
 ## Resumen
 
-Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y panel-api. En Minikube el bucket se crea de forma idempotente con un script del repositorio y los objetos se respaldan en la ruta local del nodo `/friendly-e-shop/media/images`, reutilizando el montaje existente del workspace (`ensure-minikube-mount.sh`, workspace → `/friendly-e-shop`). En Hostinger se conserva el PVC de MinIO y las credenciales dedicadas viajan cifradas por SOPS. catalog-api recibe `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY` y `S3_SECRET_KEY` con credenciales dedicadas limitadas al bucket (no las raíz); panel-api recibe `CATALOG_API_BASE_URL`. La ruta, el bucket, la política y las credenciales se documentan manualmente en `docs/product-images.md`. No se implementa lógica de imágenes en las aplicaciones ni se toca Terraform.
+Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y panel-api. En Minikube el bucket se crea de forma idempotente con un script del repositorio y los objetos se pueden respaldar a demanda en la carpeta local `/Users/dariogutierrez/projects/friendly-e-shop/media/images` con `make backup-images`/`make restore-images`, manteniendo MinIO sobre su PVC (el `hostPath` del workspace no es viable porque `minikube mount` lo expone como `9p`). En Hostinger se conserva el PVC de MinIO y las credenciales dedicadas viajan cifradas por SOPS. catalog-api recibe `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` y `PUBLIC_API_BASE_URL` con credenciales dedicadas limitadas al bucket (no las raíz); panel-api recibe `CATALOG_API_BASE_URL`. La carpeta, el bucket, la política y las credenciales se documentan manualmente en `docs/product-images.md`. No se implementa lógica de imágenes en las aplicaciones ni se toca Terraform.
 
 ## Estado de partida
 
 - MinIO existe en la base: `kubernetes/base/platform/minio.yaml` (Service `minio` puerto `api/9000` y StatefulSet `minio` en `platform`, datos en `volumeClaimTemplates` → PVC).
 - La NetworkPolicy `platform-ingress` (`kubernetes/base/platform/network-policies.yaml`) ya permite el puerto 9000 desde `apps` (RF-11 se verifica, no se modifica).
-- `catalog-api` (`kubernetes/base/catalog-api/deployment.yaml`) no tiene hoy variables S3.
+- `catalog-api` (`kubernetes/base/catalog-api/deployment.yaml`) no tiene hoy variables S3 ni URL pública.
 - `panel-api` (`kubernetes/base/panel-api/deployment.yaml`) ya expone el ConfigMap `panel-api-config` con `ACCOUNT_API_BASE_URL`; falta `CATALOG_API_BASE_URL`.
 - Secretos por overlay: `app-secrets` en Minikube (`kubernetes/overlays/minikube/resources/secrets.yaml`) y placeholder Hostinger (`kubernetes/overlays/hostinger/secrets.placeholder.yaml`). `platform-secrets` ya tiene `minio-root-user` / `minio-root-password`.
-- El montaje del workspace ya lo garantiza `scripts/ensure-minikube-mount.sh` en `/friendly-e-shop`; `scripts/deploy.sh` lo invoca antes de aplicar.
+- El montaje del workspace ya lo garantiza `scripts/ensure-minikube-mount.sh` en `/friendly-e-shop`; `scripts/deploy.sh` lo invoca antes de aplicar. Ese montaje es `9p` y no sirve como backend vivo de MinIO.
 - No hay Terraform involucrado: MinIO, PVC y secretos viven en Kustomize.
 
 ## Alcance y límites
 
 **En alcance (este repositorio `infra`):**
 - Script idempotente de aprovisionamiento del bucket y de la política/credenciales dedicadas en Minikube.
-- Patch del overlay Minikube para respaldar el volumen de datos de MinIO en la ruta local del nodo.
-- Variables de entorno S3 de `catalog-api` en la base (endpoint y bucket no secretos; claves desde `app-secrets`).
+- Scripts de respaldo/restauración a demanda de los objetos del bucket a la carpeta local, y sus targets de Make.
+- Variables de entorno S3 y `PUBLIC_API_BASE_URL` de `catalog-api` (endpoint, bucket y URL pública no secretos; claves desde `app-secrets`).
 - `CATALOG_API_BASE_URL` de `panel-api` en el ConfigMap de la base.
 - Claves de credenciales dedicadas en `app-secrets` de Minikube y en el placeholder de Hostinger (SOPS).
 - Documento operativo `docs/product-images.md`.
@@ -27,14 +27,14 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 
 **Fuera de alcance (respeta la spec):**
 - Lógica de subida/listado/borrado de imágenes dentro de catalog-api (repo propietario).
-- Aprovisionar MinIO o cambiar su Service/StatefulSet más allá del volumen de datos de Minikube.
+- Aprovisionar MinIO o cambiar su Service/StatefulSet.
 - Modificar la NetworkPolicy `platform-ingress`.
 - Cambios de Terraform del VPS Hostinger.
 - Fijar el valor real de las credenciales: son configuración manual documentada.
 
 ## Skills y convenciones a respetar
 
-- **k8s-manifest-generator / base+overlay:** los cambios transversales (env S3, ConfigMap, PVC por defecto) van en `kubernetes/base`; la diferencia Minikube (volumen hostPath) va como patch del overlay. No duplicar manifiestos completos entre Minikube y Hostinger. Conservar postura de seguridad, probes, límites y `readOnlyRootFilesystem`.
+- **k8s-manifest-generator / base+overlay:** los cambios transversales (env S3, ConfigMap) van en `kubernetes/base`; la URL pública por entorno va como patch de overlay. No duplicar manifiestos completos entre Minikube y Hostinger. Conservar postura de seguridad, probes, límites y `readOnlyRootFilesystem`.
 - **secrets-management / `docs/secrets.md`:** Minikube puede llevar valores de desarrollo en `resources/secrets.yaml`; Hostinger usa `secrets.placeholder.yaml` → `scripts/encrypt-secrets.sh` → `secrets.enc.yaml`. Nunca commitear credenciales de imágenes en claro ni la clave age privada. Las claves dedicadas son distintas de `minio-root-*`.
 - **terraform-style-guide / terraform-module-library:** no hay cambios Terraform en este corte; si apareciera alguno, se aplican formato, nombres, `type`/`description`, `sensitive`, `for_each` y organización de módulos según esas skills. Se registra la decisión para dejar constancia.
 - Convención del repo: alias `mc` y port-forward a MinIO como en `scripts/backup.sh` (`platform-secrets` sólo para tareas administrativas, nunca en la app).
@@ -59,19 +59,16 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 ### 2. Ejecución en el despliegue Minikube (RF-2, RF-14)
 
 1. En `scripts/deploy.sh`, tras `rollout status statefulset/minio` (MinIO listo) y antes de esperar las apps, invocar `"$ROOT/scripts/ensure-product-images-bucket.sh"`.
-2. El directorio del volumen se resuelve con `DirectoryOrCreate` en el patch de MinIO (sección 3), de modo que la primera ejecución crea la carpeta vacía sin impedir el despliegue (RF-4).
+2. La carpeta local de respaldo solo se crea cuando el operador corre `make backup-images` (sección 3); no bloquea el despliegue (RF-4).
 3. Documentar en `docs/product-images.md` que el script se puede correr suelto (`./scripts/ensure-product-images-bucket.sh`) y que es seguro repetirlo.
 
-### 3. Respaldo local del volumen de MinIO en Minikube (RF-3, RF-4, RF-14)
+### 3. Respaldo local de las imágenes en Minikube (RF-3, RF-4, RF-14, RF-17)
 
-1. En `kubernetes/overlays/minikube/kustomization.yaml`, agregar un patch JSON6902 sobre el StatefulSet `minio` (namespace `platform`) que:
-   - elimine `/spec/volumeClaimTemplates` (Minikube no usa PVC para MinIO),
-   - agregue `/spec/template/spec/volumes` con `{name: data, hostPath: {path: /friendly-e-shop/media/images, type: DirectoryOrCreate}}`.
-   - El `volumeMount` `data` → `/data` del contenedor se conserva porque el volumen mantiene el nombre `data`.
-2. La ruta cae dentro del montaje del workspace → `/friendly-e-shop` del nodo; el host corresponde a `/Users/dariogutierrez/projects/friendly-e-shop/media/images` (RF-3).
-3. `type: DirectoryOrCreate` crea la carpeta vacía si no existe (RF-4) y conserva el contenido entre despliegues mientras el montaje siga activo (RF-14).
-4. Riesgo de permisos: MinIO corre como `1000:1000` con `fsGroup: 1000`, y `hostPath` no aplica `fsGroup`. Mitigación documentada en `docs/product-images.md`: crear `media/images` en el host con permisos de escritura antes del primer despliegue y/o agregar un `initContainer` que haga `chown -R 1000:1000 /data`. Se elige la opción documentada + `initContainer` si el volumen queda sin escritura.
-5. Hostinger no recibe este patch: conserva `volumeClaimTemplates` de la base (PVC) (RF-15).
+1. MinIO conserva `volumeClaimTemplates` (PVC) en Minikube y Hostinger. **No** se parchea el volumen a `hostPath`: `minikube mount` expone el workspace como `9p`, que no soporta las semánticas de *rename* del backend de MinIO (`FATAL ... Rename across devices not allowed`), por lo que la carpeta local no puede ser el backend vivo.
+2. Crear `scripts/backup-images.sh`: port-forward a `service/minio` (patrón `scripts/backup.sh`), `mc alias set` con las credenciales raíz de `platform-secrets` (administración) y `mc mirror --overwrite friendly/product-images "$PRODUCT_IMAGES_DIR"`, creando la carpeta si no existe. `PRODUCT_IMAGES_DIR` por defecto `/Users/dariogutierrez/projects/friendly-e-shop/media/images` (RF-3, RF-4).
+3. Crear `scripts/restore-images.sh`: mismo alias y `mc mirror --overwrite "$PRODUCT_IMAGES_DIR" friendly/product-images`, tras `mc mb --ignore-existing` (RF-14).
+4. Añadir los targets `backup-images`/`restore-images` al `Makefile` y documentar ambos comandos en `docs/product-images.md` (RF-12, RF-17).
+5. Hostinger no usa la carpeta local: conserva `volumeClaimTemplates` de la base (PVC) (RF-15).
 
 ### 4. Credenciales dedicadas en los secretos (RF-7, RF-8, RF-9, RF-13, RF-15)
 
@@ -99,28 +96,35 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 2. Valor único para Minikube y Hostinger (DNS de clúster); no usar el host público `api.*`.
 3. No duplicar la clave en los patches de `panel-api` (los overlays solo añaden orígenes públicos y `ACCOUNT_API_BASE_URL`, que ya existe).
 
+### 6b. URL pública de catalog-api por entorno (RF-16)
+
+1. Crear `kubernetes/overlays/minikube/patches/catalog-api-env-patch.yaml` con `PUBLIC_API_BASE_URL=https://api.friendly-e-shop.duckdns.org`.
+2. Crear `kubernetes/overlays/hostinger/catalog-api-env-patch.yaml` con `PUBLIC_API_BASE_URL=https://api.REPLACE_BASE_DOMAIN`.
+3. Referenciar cada patch en el `kustomization.yaml` de su overlay (mismo patrón que `account-api-env-patch.yaml`).
+4. catalog-api registra sus `@ConfigurationProperties` por escaneo (`@ConfigurationPropertiesScan`), no con `@Component`, para que el binding de `fes.storage`/`fes.catalog` funcione.
+
 ### 7. NetworkPolicy de acceso a MinIO (RF-11)
 
 1. Verificar que `platform-ingress` sigue declarando el puerto 9000 desde `apps`; no se modifica (ya cumple).
 2. Criterio: `kustomize build` de ambos overlays conserva la regla del puerto 9000 y la conectividad `apps → minio:9000`.
 
-### 8. Documentación manual (RF-12, RF-13, RF-15)
+### 8. Documentación manual (RF-12, RF-13, RF-17)
 
 1. Crear `docs/product-images.md` con:
-   - Ruta local Minikube `/friendly-e-shop/media/images` (host y nodo), montaje reutilizado, creación y permisos, persistencia entre despliegues.
-   - Volumen de MinIO: hostPath en Minikube (patch) y PVC en Hostinger.
+   - Carpeta local de respaldo (host), comandos `make backup-images`/`make restore-images`, y por qué MinIO no puede vivir en el `hostPath` del workspace.
+   - Volumen de MinIO: PVC en Minikube y Hostinger.
    - Bucket `product-images` y política `product-images-rw`: script idempotente de Minikube y procedimiento manual equivalente en Hostinger con `mc`.
    - Credenciales dedicadas: claves `product-images-access-key`/`product-images-secret-key` en `app-secrets`, valores de desarrollo en Minikube, `REPLACE_ME` + SOPS en Hostinger; nunca credenciales raíz.
-   - Variables S3 entregadas a catalog-api y `CATALOG_API_BASE_URL` de panel-api.
+   - Variables S3 y `PUBLIC_API_BASE_URL` entregadas a catalog-api, y `CATALOG_API_BASE_URL` de panel-api.
 2. Actualizar `docs/secrets.md` sólo si hace falta aclarar que las claves de imágenes siguen el mismo flujo SOPS (referencia); sin valores reales.
 3. Registrar explícitamente que si faltan bucket o credenciales, el sistema no inventa valores (RF-13).
 
 ### 9. Validación y verificación (todos los RF)
 
 1. `make validate` (Kustomize Minikube + Hostinger, kubeconform estricto) tras los cambios.
-2. Con Minikube disponible: `make deploy` (dispara el script), `kubectl -n platform exec minio-0 -- mc ls local/product-images` o `mc ls friendly/product-images`, y comprobar el env del pod `catalog-api` (`S3_*`) y el ConfigMap de `panel-api` (`CATALOG_API_BASE_URL`).
+2. Con Minikube disponible: `make deploy` (dispara el script), `kubectl -n platform exec minio-0 -- mc ls local/product-images` o `mc ls friendly/product-images`, y comprobar el env del pod `catalog-api` (`S3_*`, `PUBLIC_API_BASE_URL`) y el ConfigMap de `panel-api` (`CATALOG_API_BASE_URL`).
 3. Inspeccionar que el usuario `catalog-images` sólo tiene `product-images-rw` y no permisos de administración.
-4. Comprobar que `hostPath` escribe en `/friendly-e-shop/media/images` y que un objeto de prueba sobrevive a recrear el clúster (`minikube delete` + `make minikube-create` + `make deploy`, con el montaje de nuevo arriba).
+4. Comprobar que un objeto de prueba llega a la carpeta local con `make backup-images` y que `make restore-images` lo devuelve al bucket.
 5. `git grep` de las claves dedicadas: no deben aparecer en claro fuera de los secretos de desarrollo/placeholder.
 
 ## Mapa RF → trabajo
@@ -129,8 +133,8 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 |---|---|
 | RF-1 | §1 (bucket `mc mb --ignore-existing`), §9 |
 | RF-2 | §1 script, §2 invocación en `deploy.sh` |
-| RF-3 | §3 patch hostPath Minikube sobre el montaje existente |
-| RF-4 | §3 `DirectoryOrCreate`; §8 documentación de permisos |
+| RF-3 | §3 scripts de respaldo/restauración (`mc mirror`) |
+| RF-4 | §3 crea la carpeta al respaldar; §8 documentación |
 | RF-5 | §5 `S3_ENDPOINT` en base |
 | RF-6 | §5 `S3_BUCKET` en base |
 | RF-7 | §4 secretos, §5 `S3_ACCESS_KEY` ← `product-images-access-key` |
@@ -140,15 +144,17 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 | RF-11 | §7 verificación de `platform-ingress` |
 | RF-12 | §8 `docs/product-images.md` |
 | RF-13 | §1.5 sin inventar valores; §8 documentación |
-| RF-14 | §3 hostPath persistente + remontaje; §2.1 |
+| RF-14 | §3 respaldo/restauración a demanda; §9 verificación |
 | RF-15 | §3 base conserva PVC; §4 placeholder + SOPS |
+| RF-16 | §6b `PUBLIC_API_BASE_URL` por overlay |
+| RF-17 | §3 scripts + targets del Makefile |
 | Todos (validación) | §9 `make validate` y verificación local |
 
 ## Criterios de verificación
 
-- Kustomize Minikube incluye el patch hostPath `/friendly-e-shop/media/images` en el StatefulSet `minio` y mantiene el volumen llamado `data`.
-- Kustomize Hostinger no incluye el patch hostPath y conserva `volumeClaimTemplates` (PVC).
-- Pod `catalog-api`: `S3_ENDPOINT=http://minio.platform.svc.cluster.local:9000`, `S3_BUCKET=product-images`, `S3_ACCESS_KEY`/`S3_SECRET_KEY` por `secretKeyRef` a `app-secrets`; sin credenciales literales.
+- Kustomize Minikube y Hostinger conservan `volumeClaimTemplates` (PVC) en el StatefulSet `minio`; ninguno introduce `hostPath`.
+- `scripts/backup-images.sh` y `scripts/restore-images.sh` copian entre el bucket y la carpeta local; el `Makefile` expone `backup-images`/`restore-images`.
+- Pod `catalog-api`: `S3_ENDPOINT=http://minio.platform.svc.cluster.local:9000`, `S3_BUCKET=product-images`, `S3_ACCESS_KEY`/`S3_SECRET_KEY` por `secretKeyRef` a `app-secrets`, y `PUBLIC_API_BASE_URL` por overlay; sin credenciales literales.
 - `panel-api-config`: `CATALOG_API_BASE_URL=http://catalog-api.apps.svc.cluster.local:8080`.
 - `app-secrets` de Minikube y placeholder Hostinger contienen `product-images-access-key`/`product-images-secret-key`; el árbol versionado no tiene credenciales reales en claro.
 - `scripts/ensure-product-images-bucket.sh` corre dos veces seguidas sin fallar y deja bucket, política y usuario dedicados.
@@ -159,6 +165,6 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 
 - Terraform queda fuera de este corte; se documenta el porqué y se respeta `/terraform-style-guide` y `/terraform-module-library` si un cambio futuro lo requiere.
 - No hay dudas abiertas en la spec; el plan no fija valores reales de producción.
-- El `hostPath` depende del montaje del workspace; si el montaje no está activo, el respaldo local no está disponible y `docs/product-images.md` debe indicarlo.
+- La carpeta local es un destino de respaldo a demanda; el almacenamiento vivo de MinIO es el PVC. El respaldo debe ejecutarse antes de `make destroy`.
 - Las credenciales de desarrollo de Minikube y el placeholder `REPLACE_ME` de Hostinger no son secretos de producción.
-- `catalog-api` es el dueño de las claves S3; este plan sólo las entrega por entorno, sin tocar la lógica del servicio.
+- `catalog-api` es el dueño de las claves S3 y de la URL pública; este plan sólo las entrega por entorno, sin tocar la lógica del servicio.

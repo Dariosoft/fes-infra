@@ -11,8 +11,12 @@ refresh_dependencies() {
 }
 
 start_app() {
+  jvm_args="-Dspring.devtools.restart.poll-interval=2s -Dspring.devtools.restart.quiet-period=1s"
+  if [ -n "${JAVA_DEBUG_OPTS:-}" ]; then
+    jvm_args="$jvm_args $JAVA_DEBUG_OPTS"
+  fi
   mvn -o -DskipTests spring-boot:run \
-    -Dspring-boot.run.jvmArguments="-Dspring.devtools.restart.poll-interval=2s -Dspring.devtools.restart.quiet-period=1s" &
+    "-Dspring-boot.run.jvmArguments=$jvm_args" &
   app=$!
 }
 
