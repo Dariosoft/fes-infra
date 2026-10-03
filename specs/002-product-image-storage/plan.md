@@ -11,8 +11,8 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 - `catalog-api` (`kubernetes/base/catalog-api/deployment.yaml`) no tiene hoy variables S3 ni URL pública.
 - `panel-api` (`kubernetes/base/panel-api/deployment.yaml`) ya expone el ConfigMap `panel-api-config` con `ACCOUNT_API_BASE_URL`; falta `CATALOG_API_BASE_URL`.
 - Secretos por overlay: `app-secrets` en Minikube (`kubernetes/overlays/minikube/resources/secrets.yaml`) y placeholder Hostinger (`kubernetes/overlays/hostinger/secrets.placeholder.yaml`). `platform-secrets` ya tiene `minio-root-user` / `minio-root-password`.
-- El montaje del workspace ya lo garantiza `scripts/ensure-minikube-mount.sh` en `/friendly-e-shop`; `scripts/deploy.sh` lo invoca antes de aplicar. Ese montaje es `9p` y no sirve como backend vivo de MinIO.
-- `scripts/java-dev-reload.sh` ya arranca los APIs Java con recarga en caliente en los pods `:live`; el overlay Minikube monta ese script desde el ConfigMap `java-dev-reload` (`patches/live/*-api.yaml`). Ya existe el patrón de patches de `env` por API (`account-api-env-patch.yaml`, `panel-api-env-patch.yaml`).
+- El montaje del workspace ya lo garantiza `scripts/ensure-minikube-mount.sh` en `/friendly-e-shop`; `scripts/deploy/deploy.sh` lo invoca antes de aplicar. Ese montaje es `9p` y no sirve como backend vivo de MinIO.
+- `scripts/runtime/java-dev-reload.sh` ya arranca los APIs Java con recarga en caliente en los pods `:live`; el overlay Minikube monta ese script desde el ConfigMap `java-dev-reload` (`patches/live/*-api.yaml`). Ya existe el patrón de patches de `env` por API (`account-api-env-patch.yaml`, `panel-api-env-patch.yaml`).
 - No hay Terraform involucrado: MinIO, PVC y secretos viven en Kustomize.
 
 ## Alcance y límites
@@ -23,7 +23,7 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 - Variables de entorno S3 y `PUBLIC_API_BASE_URL` de `catalog-api` (endpoint, bucket y URL pública no secretos; claves desde `app-secrets`).
 - `CATALOG_API_BASE_URL` de `panel-api` en el ConfigMap de la base.
 - Claves de credenciales dedicadas en `app-secrets` de Minikube y en el placeholder de Hostinger (SOPS).
-- Overlays de depuración JDWP por API en Minikube (`patches/*-debug.yaml`), el soporte de `JAVA_DEBUG_OPTS` en `scripts/java-dev-reload.sh` y la sección de VS Code en `README.md`.
+- Overlays de depuración JDWP por API en Minikube (`patches/*-debug.yaml`), el soporte de `JAVA_DEBUG_OPTS` en `scripts/runtime/java-dev-reload.sh` y la sección de VS Code en `README.md`.
 - Documento operativo `docs/product-images.md`.
 - Validación con `make validate` y verificación local con el script de bucket + `make smoke-test` si Minikube está disponible.
 
@@ -45,7 +45,7 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 
 ### 1. Script idempotente del bucket y la política dedicada (RF-1, RF-2, RF-7, RF-8, RF-9, RF-13)
 
-1. Crear `scripts/ensure-product-images-bucket.sh` con `set -euo pipefail`, siguiendo el patrón de `scripts/backup.sh`:
+1. Crear `scripts/storage/ensure-bucket.sh` con `set -euo pipefail`, siguiendo el patrón de `scripts/backup.sh`:
    - `PORT=${MINIO_FORWARD_PORT:-19001}` (distinto del 19000 de `backup.sh`) y port-forward a `service/minio` en `platform`.
    - Leer `minio-root-user` / `minio-root-password` de `platform-secrets` (solo operación administrativa).
    - `mc alias set friendly http://127.0.0.1:$PORT …`.
@@ -60,17 +60,17 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 
 ### 2. Ejecución en el despliegue Minikube (RF-2, RF-14)
 
-1. En `scripts/deploy.sh`, tras `rollout status statefulset/minio` (MinIO listo) y antes de esperar las apps, invocar `"$ROOT/scripts/ensure-product-images-bucket.sh"`.
+1. En `scripts/deploy/deploy.sh`, tras `rollout status statefulset/minio` (MinIO listo) y antes de esperar las apps, invocar `"$ROOT/scripts/storage/ensure-bucket.sh"`.
 2. La carpeta local de respaldo solo se crea cuando el operador corre `make backup-images` (sección 3); no bloquea el despliegue (RF-4).
-3. Documentar en `docs/product-images.md` que el script se puede correr suelto (`./scripts/ensure-product-images-bucket.sh`) y que es seguro repetirlo.
+3. Documentar en `docs/product-images.md` que el script se puede correr suelto (`./scripts/storage/ensure-bucket.sh`) y que es seguro repetirlo.
 
 ### 3. Respaldo local de las imágenes en Minikube (RF-3, RF-4, RF-14, RF-17, RF-25, RF-26)
 
 1. MinIO conserva `volumeClaimTemplates` (PVC) en Minikube y Hostinger. **No** se parchea el volumen a `hostPath`: `minikube mount` expone el workspace como `9p`, que no soporta las semánticas de *rename* del backend de MinIO (`FATAL ... Rename across devices not allowed`), por lo que la carpeta local no puede ser el backend vivo.
-2. Crear `scripts/backup-images.sh`: port-forward a `service/minio` (patrón `scripts/backup.sh`), `mc alias set` con las credenciales raíz de `platform-secrets` (administración) y `mc mirror --overwrite friendly/product-images "$PRODUCT_IMAGES_DIR"`, creando la carpeta si no existe. `PRODUCT_IMAGES_DIR` por defecto `/Users/dariogutierrez/projects/friendly-e-shop/media/images` (RF-3, RF-4).
-3. Crear `scripts/restore-images.sh`: mismo alias y `mc mirror "$PRODUCT_IMAGES_DIR" friendly/product-images`, tras `mc mb --ignore-existing` (RF-14). Con `RESTORE_OVERWRITE=1` (default) usa `--overwrite`; con `0` copia solo los objetos faltantes (RF-26).
+2. Crear `scripts/storage/backup-images.sh`: port-forward a `service/minio` (patrón `scripts/backup.sh`), `mc alias set` con las credenciales raíz de `platform-secrets` (administración) y `mc mirror --overwrite friendly/product-images "$PRODUCT_IMAGES_DIR"`, creando la carpeta si no existe. `PRODUCT_IMAGES_DIR` por defecto `/Users/dariogutierrez/projects/friendly-e-shop/media/images` (RF-3, RF-4).
+3. Crear `scripts/storage/restore-images.sh`: mismo alias y `mc mirror "$PRODUCT_IMAGES_DIR" friendly/product-images`, tras `mc mb --ignore-existing` (RF-14). Con `RESTORE_OVERWRITE=1` (default) usa `--overwrite`; con `0` copia solo los objetos faltantes (RF-26).
 4. Añadir los targets `backup-images`/`restore-images` al `Makefile` y documentar ambos comandos en `docs/product-images.md` (RF-12, RF-17).
-5. Automatizar el ciclo de vida (RF-25, RF-26): `make destroy` ejecuta `scripts/backup-images.sh` antes de `minikube delete` solo si el perfil está `Running` y continúa aunque falle; `scripts/deploy.sh` ejecuta `RESTORE_OVERWRITE=0 scripts/restore-images.sh` tras `ensure-product-images-bucket.sh` si existe la carpeta local (`make deploy` es el paso que sigue a `make minikube-create`; MinIO no existe al crear el clúster).
+5. Automatizar el ciclo de vida (RF-25, RF-26): `make destroy` ejecuta `scripts/storage/backup-images.sh` antes de `minikube delete` solo si el perfil está `Running` y continúa aunque falle; `scripts/deploy/deploy.sh` ejecuta `RESTORE_OVERWRITE=0 scripts/storage/restore-images.sh` tras `ensure-product-images-bucket.sh` si existe la carpeta local (`make deploy` es el paso que sigue a `make minikube-create`; MinIO no existe al crear el clúster).
 6. Hostinger no usa la carpeta local: conserva `volumeClaimTemplates` de la base (PVC) (RF-15).
 
 ### 4. Credenciales dedicadas en los secretos (RF-7, RF-8, RF-9, RF-13, RF-15)
@@ -132,12 +132,20 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 
 ### 10. Depuración local de los APIs Java (RF-18 … RF-24)
 
-1. Crear `kubernetes/overlays/minikube/patches/catalog-api-debug.yaml`, `account-api-debug.yaml`, `order-api-debug.yaml` y `payment-api-debug.yaml`: patch estratégico sobre el contenedor del API que añade `JAVA_DEBUG_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:<puerto>` con 5005/5006/5007/5008 (RF-18, RF-19, RF-20).
+1. Crear `kubernetes/overlays/minikube/patches/{catalog-api,account-api,order-api,payment-api}/debug.yaml`: patch estratégico sobre el contenedor del API que añade `JAVA_DEBUG_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:<puerto>` con 5005/5006/5007/5008 (RF-18, RF-19, RF-20).
 2. Referenciar los cuatro patches en `kubernetes/overlays/minikube/kustomization.yaml` (RF-18).
-3. En `scripts/java-dev-reload.sh`, cuando `JAVA_DEBUG_OPTS` no esté vacío, añadirlo a los argumentos de la JVM de Spring Boot (`-Dspring-boot.run.jvmArguments`); si está ausente, no agregar nada (RF-22, RF-23).
+3. En `scripts/runtime/java-dev-reload.sh`, cuando `JAVA_DEBUG_OPTS` no esté vacío, añadirlo a los argumentos de la JVM de Spring Boot (`-Dspring-boot.run.jvmArguments`); si está ausente, no agregar nada (RF-22, RF-23).
 4. No tocar el overlay Hostinger: no incluye estos patches, así que el depurador queda deshabilitado (RF-21).
 5. Documentar en `README.md` la sección de depuración: perfiles de VS Code, puertos por API y el port-forward temporal que abre el IDE (RF-24).
 6. El agente escucha en `127.0.0.1` dentro del pod; el acceso es exclusivamente por port-forward (RF-20).
+
+### 11. Convenciones de estructura: Makefile, scripts y parches (RF-27 … RF-30)
+
+1. Crear la skill `k8s-custom-good-practices` en `.agents/skills/` y referenciarla en `AGENTS.md` (RF-30).
+2. `Makefile`: cada target delega en `scripts/`; `tunnel` → `scripts/cluster/tunnel.sh` y `destroy` → `scripts/cluster/destroy.sh`, sin lógica multilínea inline (RF-27).
+3. Reorganizar `scripts/` por dominio (`lib`, `setup`, `cluster`, `build`, `deploy`, `runtime`, `storage`, `databases`, `secrets`, `checks`, `tools`) con nombres representativos y una librería compartida `scripts/lib/{common,kube,minio}.sh` reutilizada por `source` (RF-28).
+4. Reorganizar `kubernetes/overlays/minikube/patches/` en una carpeta por proyecto más `shared/` (namespace, telemetría); se elimina `live/` y sus parches pasan a la carpeta de su proyecto (RF-29).
+5. Actualizar referencias en `Makefile`, `kustomization.yaml`, `docs/*.md` y las llamadas entre scripts; `runtime/java-dev-reload.sh` queda standalone (`#!/bin/sh`, corre dentro del contenedor).
 
 ## Mapa RF → trabajo
 
@@ -167,26 +175,33 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 | RF-22 | §10 `java-dev-reload.sh` añade `JAVA_DEBUG_OPTS` |
 | RF-23 | §10 sin `JAVA_DEBUG_OPTS` el API no expone JDWP |
 | RF-24 | §10 sección de depuración en `README.md` |
+| RF-25 | §3 respaldo automático en `make destroy` |
+| RF-26 | §3 restauración de faltantes en `make deploy` |
+| RF-27 | §11 Makefile delega `tunnel`/`destroy` en scripts |
+| RF-28 | §11 estructura de `scripts/` + `scripts/lib/` |
+| RF-29 | §11 parches de Minikube por proyecto + `shared/` |
+| RF-30 | §11 skill `k8s-custom-good-practices` |
 | Todos (validación) | §9 `make validate` y verificación local |
 
 ## Criterios de verificación
 
 - Kustomize Minikube y Hostinger conservan `volumeClaimTemplates` (PVC) en el StatefulSet `minio`; ninguno introduce `hostPath`.
-- `scripts/backup-images.sh` y `scripts/restore-images.sh` copian entre el bucket y la carpeta local; el `Makefile` expone `backup-images`/`restore-images`.
+- `scripts/storage/backup-images.sh` y `scripts/storage/restore-images.sh` copian entre el bucket y la carpeta local; el `Makefile` expone `backup-images`/`restore-images`.
 - Pod `catalog-api`: `S3_ENDPOINT=http://minio.platform.svc.cluster.local:9000`, `S3_BUCKET=product-images`, `S3_ACCESS_KEY`/`S3_SECRET_KEY` por `secretKeyRef` a `app-secrets`, y `PUBLIC_API_BASE_URL` por overlay; sin credenciales literales.
 - `panel-api-config`: `CATALOG_API_BASE_URL=http://catalog-api.apps.svc.cluster.local:8080`.
 - `app-secrets` de Minikube y placeholder Hostinger contienen `product-images-access-key`/`product-images-secret-key`; el árbol versionado no tiene credenciales reales en claro.
-- `scripts/ensure-product-images-bucket.sh` corre dos veces seguidas sin fallar y deja bucket, política y usuario dedicados.
+- `scripts/storage/ensure-bucket.sh` corre dos veces seguidas sin fallar y deja bucket, política y usuario dedicados.
 - `platform-ingress` conserva el puerto 9000 desde `apps`.
 - El overlay Minikube habilita `JAVA_DEBUG_OPTS` con puertos 5005–5008 en los cuatro APIs Java; el overlay Hostinger no define `JAVA_DEBUG_OPTS`.
-- `scripts/java-dev-reload.sh` añade `JAVA_DEBUG_OPTS` a la JVM solo cuando está definido.
+- `scripts/runtime/java-dev-reload.sh` añade `JAVA_DEBUG_OPTS` a la JVM solo cuando está definido.
 - `make validate` en verde.
+- `make tunnel`/`make destroy` invocan scripts; `scripts/` está agrupado por dominio con `scripts/lib/`; los parches de Minikube están por proyecto + `shared/`; `bash -n`/`sh -n` de todos los scripts queda limpio.
 
 ## Notas
 
 - Terraform queda fuera de este corte; se documenta el porqué y se respeta `/terraform-style-guide` y `/terraform-module-library` si un cambio futuro lo requiere.
 - No hay dudas abiertas en la spec; el plan no fija valores reales de producción.
-- La carpeta local es un destino de respaldo a demanda; el almacenamiento vivo de MinIO es el PVC. El respaldo debe ejecutarse antes de `make destroy`.
+- La carpeta local es un destino de respaldo; el almacenamiento vivo de MinIO es el PVC. `make destroy` respalda automáticamente (best-effort) y `make deploy` restaura los faltantes.
 - Las credenciales de desarrollo de Minikube y el placeholder `REPLACE_ME` de Hostinger no son secretos de producción.
 - `catalog-api` es el dueño de las claves S3 y de la URL pública; este plan sólo las entrega por entorno, sin tocar la lógica del servicio.
 - La depuración JDWP es exclusiva de Minikube y escucha en `127.0.0.1`; el overlay Hostinger no la habilita.

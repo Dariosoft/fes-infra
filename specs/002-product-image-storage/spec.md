@@ -6,6 +6,8 @@ Las imágenes de producto necesitan un almacenamiento compatible con S3 dentro d
 
 El mismo corte habilita la depuración local de los APIs Java en Minikube (agente JDWP habilitado por `JAVA_DEBUG_OPTS`) para desarrollar el cableado S3 sin frenar el arranque normal; Hostinger no habilita el depurador.
 
+El repositorio fija además convenciones de mantenibilidad, documentadas en la skill `k8s-custom-good-practices`: el `Makefile` delega en scripts de `scripts/`, los scripts se agrupan por dominio con una librería compartida en `scripts/lib/` y los parches del overlay de Minikube se agrupan por proyecto (más `shared/` para los transversales).
+
 ## Usuarios / actores
 
 - Operador de infraestructura que despliega Minikube o Hostinger.
@@ -23,6 +25,7 @@ El mismo corte habilita la depuración local de los APIs Java en Minikube (agent
 - H5: Como operador quiero una guía con la configuración manual de la carpeta local, el bucket y las credenciales para reproducir el entorno sin adivinar valores.
 - H6: Como desarrollador quiero adjuntar VS Code con JDWP a los APIs Java en Minikube para depurar el cableado S3 sin frenar el arranque normal.
 - H7: Como operador quiero que Hostinger nunca exponga el depurador para no abrir puertos de depuración fuera del entorno local.
+- H8: Como desarrollador quiero que el `Makefile`, los scripts y los parches sigan una estructura mantenible y documentada (skill `k8s-custom-good-practices`) para entender rápido qué hace cada pieza.
 
 ## Requisitos funcionales (criterios de aceptación en EARS)
 
@@ -52,6 +55,10 @@ El mismo corte habilita la depuración local de los APIs Java en Minikube (agent
 - RF-24: EL SISTEMA incluirá en `README.md` las instrucciones para adjuntar VS Code a los APIs Java de Minikube.
 - RF-25: CUANDO el operador ejecute `make destroy` con el perfil de Minikube en ejecución, EL SISTEMA respaldará los objetos del bucket en la carpeta local antes de eliminar el clúster, sin bloquear el borrado si el respaldo falla o el perfil no está corriendo.
 - RF-26: CUANDO el operador ejecute `make deploy`, EL SISTEMA restaurará en el bucket los objetos que falten desde la carpeta local, sin sobrescribir los que ya existan.
+- RF-27: EL SISTEMA delegará en un script de `scripts/` toda acción del `Makefile` que requiera más de una línea, incluidas `make tunnel` y `make destroy`.
+- RF-28: EL SISTEMA organizará `scripts/` por dominio (`lib`, `setup`, `cluster`, `build`, `deploy`, `runtime`, `storage`, `databases`, `secrets`, `checks`, `tools`) y reutilizará el código común desde `scripts/lib/` (`common.sh`, `kube.sh`, `minio.sh`), sin repetir boilerplate.
+- RF-29: EL SISTEMA agrupará los parches del overlay de Minikube en una carpeta por proyecto y en `shared/` los transversales (namespace, telemetría), sin una carpeta `live/`.
+- RF-30: EL SISTEMA mantendrá la skill `k8s-custom-good-practices` con estas convenciones.
 
 ## Requisitos no funcionales
 
@@ -90,6 +97,7 @@ El mismo corte habilita la depuración local de los APIs Java en Minikube (agent
 - En Minikube, `JAVA_DEBUG_OPTS` habilita JDWP en los cuatro APIs Java con puertos únicos y VS Code se adjunta por port-forward; Hostinger no habilita el depurador.
 - Comprobado que las credenciales de imágenes no aparecen en claro en el repositorio.
 - `make validate` termina en verde tras los cambios de manifiestos.
+- `make tunnel` y `make destroy` invocan scripts de `scripts/`, y `bash -n`/`sh -n` de todos los scripts queda limpio.
 
 ## Dudas abiertas
 

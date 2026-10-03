@@ -114,8 +114,13 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar lógica de im
 
 - [x] **T20. Automatizar el respaldo al destruir y la restauración al recrear**
   - Cubierta: RF-25, RF-26
-  - `make destroy` intenta `scripts/backup-images.sh` (best-effort: solo si el perfil está `Running`) antes de `minikube delete`. `scripts/deploy.sh` restaura los objetos faltantes desde la carpeta local tras `ensure-product-images-bucket.sh` con `RESTORE_OVERWRITE=0` (no sobrescribe existentes). `scripts/restore-images.sh` respeta `RESTORE_OVERWRITE`.
+  - `make destroy` intenta `scripts/storage/backup-images.sh` (best-effort: solo si el perfil está `Running`) antes de `minikube delete`. `scripts/deploy/deploy.sh` restaura los objetos faltantes desde la carpeta local tras `scripts/storage/ensure-bucket.sh` con `RESTORE_OVERWRITE=0` (no sobrescribe existentes). `scripts/storage/restore-images.sh` respeta `RESTORE_OVERWRITE`.
   - Done when: `make destroy` respalda sin bloquear el borrado y `make deploy` restaura solo lo faltante cuando la carpeta local existe.
+
+- [x] **T21. Estandarizar Makefile, scripts y parches**
+  - Cubierta: RF-27, RF-28, RF-29, RF-30
+  - Crear la skill `k8s-custom-good-practices` (y referenciarla en `AGENTS.md`); mover `tunnel`/`destroy` a `scripts/cluster/{tunnel,destroy}.sh`; reorganizar `scripts/` por dominio con `scripts/lib/{common,kube,minio}.sh`; reorganizar `kubernetes/overlays/minikube/patches/` por proyecto + `shared/` (sin `live/`); actualizar `Makefile`, `kustomization.yaml`, `docs/*.md` y `scripts/README.md`.
+  - Done when: `make validate` y `bash -n`/`sh -n` de todos los scripts en verde; `make tunnel`/`make destroy` llaman a scripts; sin referencias viejas.
 
 ## Mapa RF → tareas
 
@@ -147,4 +152,8 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar lógica de im
 | RF-24 | T19 |
 | RF-25 | T20 |
 | RF-26 | T20 |
+| RF-27 | T21 |
+| RF-28 | T21 |
+| RF-29 | T21 |
+| RF-30 | T21 |
 | Todos (validación) | T13 |
