@@ -44,26 +44,7 @@ smoke-test:
 
 # Exposes local ingress routes and development dependencies until Ctrl+C.
 tunnel:
-	@set -eu; \
-	postgres_pid=; \
-	minio_pid=; \
-	ingress_pid=; \
-	cleanup() { \
-		[ -z "$$postgres_pid" ] || kill "$$postgres_pid" 2>/dev/null || true; \
-		[ -z "$$minio_pid" ] || kill "$$minio_pid" 2>/dev/null || true; \
-		[ -z "$$ingress_pid" ] || sudo -n kill "$$ingress_pid" 2>/dev/null || true; \
-	}; \
-	trap cleanup EXIT; \
-	trap 'exit 130' INT; \
-	trap 'exit 143' TERM; \
-	sudo -v; \
-	kubectl -n platform port-forward service/postgresql 5432:5432 & \
-	postgres_pid=$$!; \
-	kubectl -n platform port-forward service/minio 9000:9000 & \
-	minio_pid=$$!; \
-	sudo -n kubectl -n ingress-nginx port-forward service/ingress-nginx-controller 80:80 443:443 & \
-	ingress_pid=$$!; \
-	wait "$$ingress_pid"
+	./scripts/minikube-tunnel.sh
 
 # Opens a local port-forward to the Grafana interface.
 observability:
@@ -92,11 +73,4 @@ validate:
 
 # Backs up product images (best effort) and permanently deletes the local Minikube profile and its data.
 destroy:
-	@profile="$${MINIKUBE_PROFILE:-friendly-e-shop}"; \
-	if [ "$$(minikube --profile "$$profile" status --format '{{.Host}}' 2>/dev/null)" = "Running" ]; then \
-		echo "Backing up product images before destroy..."; \
-		./scripts/backup-images.sh || echo "Product image backup failed; continuing with destroy."; \
-	else \
-		echo "Minikube '$$profile' is not running; skipping product image backup."; \
-	fi
-	minikube delete --profile "$${MINIKUBE_PROFILE:-friendly-e-shop}"
+	./scripts/minikube-destroy.sh

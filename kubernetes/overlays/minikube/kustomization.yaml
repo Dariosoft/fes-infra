@@ -14,23 +14,23 @@ configMapGenerator:
     options:
       disableNameSuffixHash: true
 patches:
-  - path: patches/otel-config-patch.yaml
-  - path: patches/account-api-debug.yaml
-  - path: patches/account-api-env-patch.yaml
-  - path: patches/catalog-api-env-patch.yaml
-  - path: patches/catalog-api-debug.yaml
-  - path: patches/order-api-debug.yaml
-  - path: patches/payment-api-debug.yaml
-  - path: patches/panel-api-env-patch.yaml
-  - path: patches/panel-api-image-pull.yaml
-  - path: patches/apps-namespace.yaml
-  - path: patches/live/panel-web.yaml
-  - path: patches/live/client-web.yaml
-  - path: patches/live/panel-api.yaml
-  - path: patches/live/account-api.yaml
-  - path: patches/live/catalog-api.yaml
-  - path: patches/live/order-api.yaml
-  - path: patches/live/payment-api.yaml
+  - path: patches/shared/otel-config-patch.yaml
+  - path: patches/shared/apps-namespace.yaml
+  - path: patches/account-api/env-patch.yaml
+  - path: patches/account-api/debug.yaml
+  - path: patches/account-api/live.yaml
+  - path: patches/catalog-api/env-patch.yaml
+  - path: patches/catalog-api/debug.yaml
+  - path: patches/catalog-api/live.yaml
+  - path: patches/order-api/debug.yaml
+  - path: patches/order-api/live.yaml
+  - path: patches/payment-api/debug.yaml
+  - path: patches/payment-api/live.yaml
+  - path: patches/panel-api/env-patch.yaml
+  - path: patches/panel-api/image-pull.yaml
+  - path: patches/panel-api/live.yaml
+  - path: patches/client-web/live.yaml
+  - path: patches/panel-web/live.yaml
   - target: {group: apps, version: v1, kind: Deployment, namespace: apps}
     patch: |-
       - op: replace
