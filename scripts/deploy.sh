@@ -45,6 +45,9 @@ kubectl --context "$PROFILE" -n platform rollout status statefulset/postgresql -
 kubectl --context "$PROFILE" -n platform rollout status statefulset/rabbitmq --timeout=300s
 kubectl --context "$PROFILE" -n platform rollout status statefulset/minio --timeout=300s
 "$ROOT/scripts/ensure-product-images-bucket.sh"
+if [ -d "$WORKSPACE/media/images" ]; then
+  RESTORE_OVERWRITE=0 "$ROOT/scripts/restore-images.sh" || echo "Product image restore skipped."
+fi
 kubectl --context "$PROFILE" -n observability rollout status deployment/otel-collector --timeout=300s
 kubectl --context "$PROFILE" -n observability rollout status deployment/prometheus --timeout=300s
 kubectl --context "$PROFILE" -n observability rollout status deployment/loki --timeout=300s

@@ -43,21 +43,25 @@ A reserved folder on the host keeps an on-demand copy of the bucket objects:
 The application always reads and writes MinIO through its PVC; the folder is only touched by the
 backup and restore commands.
 
-Before destroying the cluster (or whenever you want an inspectable copy), run:
+The backup and restore run automatically as part of the cluster lifecycle:
+
+- `make destroy` backs up the bucket to the folder **before** deleting the profile (best effort:
+  only when the profile is running; it never blocks the destroy).
+- `make deploy` uploads **missing** objects from the folder back into the bucket (no overwrite), so
+  recreating the environment (`make destroy` → `make minikube-create` → `make deploy`) restores the
+  images without touching newer ones.
+
+You can also run them manually:
 
 ```bash
-make backup-images
-```
-
-After recreating the cluster, upload the folder back into the bucket:
-
-```bash
-make restore-images
+make backup-images   # mirror the bucket to the folder (overwrite)
+make restore-images  # mirror the folder to the bucket (overwrite)
 ```
 
 Both commands open a temporary port-forward to `service/minio` and use `mc mirror`. Override the
 folder and bucket with `PRODUCT_IMAGES_DIR` and `PRODUCT_IMAGES_BUCKET`. The scripts read the root
-credentials from `platform-secrets` for administration only.
+credentials from `platform-secrets` for administration only. `RESTORE_OVERWRITE=0` makes the
+restore copy only missing objects (this is what `make deploy` uses).
 
 ## Bucket and least-privilege policy
 

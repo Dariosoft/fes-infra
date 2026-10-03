@@ -10,7 +10,7 @@ bootstrap:
 doctor:
 	./scripts/doctor.sh
 
-# Creates the Minikube cluster and enables its required addons.
+# Creates the Minikube cluster and enables its required addons. Run 'make deploy' next to restore saved product images.
 minikube-create:
 	./scripts/minikube-create.sh
 
@@ -90,6 +90,13 @@ restore-images:
 validate:
 	./scripts/validate.sh
 
-# Permanently deletes the local Minikube profile and its data.
+# Backs up product images (best effort) and permanently deletes the local Minikube profile and its data.
 destroy:
+	@profile="$${MINIKUBE_PROFILE:-friendly-e-shop}"; \
+	if [ "$$(minikube --profile "$$profile" status --format '{{.Host}}' 2>/dev/null)" = "Running" ]; then \
+		echo "Backing up product images before destroy..."; \
+		./scripts/backup-images.sh || echo "Product image backup failed; continuing with destroy."; \
+	else \
+		echo "Minikube '$$profile' is not running; skipping product image backup."; \
+	fi
 	minikube delete --profile "$${MINIKUBE_PROFILE:-friendly-e-shop}"

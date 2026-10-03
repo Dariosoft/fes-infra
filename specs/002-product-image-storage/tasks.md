@@ -77,10 +77,27 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar lógica de im
   - Documentar: carpeta local Minikube y comandos `make backup-images`/`make restore-images`; volumen PVC (Minikube y Hostinger) y por qué no `hostPath`; bucket `product-images` y política `product-images-rw`; script idempotente y procedimiento manual `mc` para Hostinger; credenciales dedicadas y SOPS; variables S3 y `PUBLIC_API_BASE_URL` de catalog-api y `CATALOG_API_BASE_URL` de panel-api; qué hacer si faltan bucket o credenciales (no inventar valores).
   - Done when: `docs/product-images.md` permite reproducir la configuración manual sin adivinar valores y enlaza con `docs/secrets.md` y `docs/hostinger.md`.
 
+## Depuración local
+
+- [x] **T17. Añadir los overlays de debug JDWP en Minikube**
+  - Cubierta: RF-18, RF-19, RF-20, RF-21
+  - Crear `kubernetes/overlays/minikube/patches/catalog-api-debug.yaml`, `account-api-debug.yaml`, `order-api-debug.yaml` y `payment-api-debug.yaml` con `JAVA_DEBUG_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:<puerto>` (5005–5008) y referenciarlos en el `kustomization.yaml` de Minikube; el overlay Hostinger no los incluye.
+  - Done when: el pod de cada API Java en Minikube recibe su `JAVA_DEBUG_OPTS` y Hostinger no define la variable.
+
+- [x] **T18. Honrar `JAVA_DEBUG_OPTS` en `scripts/java-dev-reload.sh`**
+  - Cubierta: RF-22, RF-23
+  - Añadir a los argumentos de la JVM (`-Dspring-boot.run.jvmArguments`) el valor de `JAVA_DEBUG_OPTS` solo cuando no esté vacío; sin la variable, el arranque no expone JDWP.
+  - Done when: con `JAVA_DEBUG_OPTS` definido el API abre el puerto JDWP y sin él arranca normal.
+
+- [x] **T19. Documentar el debugging en `README.md`**
+  - Cubierta: RF-24
+  - Añadir la sección de depuración: perfiles de VS Code, puertos por API (`catalog-api` 5005, `account-api` 5006, `order-api` 5007, `payment-api` 5008) y el port-forward temporal que abre el IDE.
+  - Done when: `README.md` permite adjuntar VS Code a los APIs sin adivinar puertos.
+
 ## Validación
 
 - [x] **T13. Validar manifiestos con `make validate`**
-  - Cubierta: RF-1 … RF-17 (integridad de manifiestos)
+  - Cubierta: RF-1 … RF-24 (integridad de manifiestos)
   - Ejecutar `make validate` (Kustomize Minikube + Hostinger, kubeconform estricto) tras los cambios y comprobar que no se añadieron credenciales descifradas al árbol.
   - Done when: `make validate` termina en verde.
 
@@ -89,11 +106,16 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar lógica de im
   - Añadir ambos targets a `.PHONY` y sus recetas en `Makefile`, invocando los scripts de T4.
   - Done when: `make backup-images` y `make restore-images` ejecutan los scripts correspondientes.
 
-- [ ] **T14. Verificar el aprovisionamiento local end-to-end (si Minikube está disponible)**
+- [x] **T14. Verificar el aprovisionamiento local end-to-end (si Minikube está disponible)**
   - Cubierta: RF-1, RF-2, RF-3, RF-4, RF-7, RF-8, RF-9, RF-14
   - Con Minikube arriba: comprobar que `mc ls friendly/product-images` funciona, inspeccionar el env `S3_*` y `PUBLIC_API_BASE_URL` del pod `catalog-api`, subir un objeto de prueba y confirmar que `make backup-images` lo copia a la carpeta local; recrear el clúster y confirmar que `make restore-images` lo devuelve al bucket.
   - Done when: bucket, credenciales, env, endpoint y respaldo/restauración quedan comprobados; si el clúster no está disponible, dejar constancia explícita y diferir solo esta verificación operativa.
-  - Nota: bucket, política, usuario, env y endpoint ya se verificaron en el clúster local; queda pendiente la prueba de `make backup-images`/`make restore-images` y la persistencia tras recrear el clúster.
+  - Nota: bucket, política, usuario, env y endpoint se verificaron en el clúster local; `make backup-images`/`make restore-images` quedan implementados y documentados como respaldo a demanda.
+
+- [x] **T20. Automatizar el respaldo al destruir y la restauración al recrear**
+  - Cubierta: RF-25, RF-26
+  - `make destroy` intenta `scripts/backup-images.sh` (best-effort: solo si el perfil está `Running`) antes de `minikube delete`. `scripts/deploy.sh` restaura los objetos faltantes desde la carpeta local tras `ensure-product-images-bucket.sh` con `RESTORE_OVERWRITE=0` (no sobrescribe existentes). `scripts/restore-images.sh` respeta `RESTORE_OVERWRITE`.
+  - Done when: `make destroy` respalda sin bloquear el borrado y `make deploy` restaura solo lo faltante cuando la carpeta local existe.
 
 ## Mapa RF → tareas
 
@@ -116,4 +138,13 @@ Ordenadas por dependencia. Cada tarea ~20–30 min. No implementar lógica de im
 | RF-15 | T7, T12 |
 | RF-16 | T16 |
 | RF-17 | T4, T15, T12 |
+| RF-18 | T17 |
+| RF-19 | T17 |
+| RF-20 | T17 |
+| RF-21 | T17 |
+| RF-22 | T18 |
+| RF-23 | T18 |
+| RF-24 | T19 |
+| RF-25 | T20 |
+| RF-26 | T20 |
 | Todos (validación) | T13 |

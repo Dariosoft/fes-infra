@@ -2,7 +2,7 @@
 
 ## Resumen
 
-Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y panel-api. En Minikube el bucket se crea de forma idempotente con un script del repositorio y los objetos se pueden respaldar a demanda en la carpeta local `/Users/dariogutierrez/projects/friendly-e-shop/media/images` con `make backup-images`/`make restore-images`, manteniendo MinIO sobre su PVC (el `hostPath` del workspace no es viable porque `minikube mount` lo expone como `9p`). En Hostinger se conserva el PVC de MinIO y las credenciales dedicadas viajan cifradas por SOPS. catalog-api recibe `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` y `PUBLIC_API_BASE_URL` con credenciales dedicadas limitadas al bucket (no las raíz); panel-api recibe `CATALOG_API_BASE_URL`. La carpeta, el bucket, la política y las credenciales se documentan manualmente en `docs/product-images.md`. No se implementa lógica de imágenes en las aplicaciones ni se toca Terraform.
+Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y panel-api. En Minikube el bucket se crea de forma idempotente con un script del repositorio y los objetos se pueden respaldar a demanda en la carpeta local `/Users/dariogutierrez/projects/friendly-e-shop/media/images` con `make backup-images`/`make restore-images`, manteniendo MinIO sobre su PVC (el `hostPath` del workspace no es viable porque `minikube mount` lo expone como `9p`). En Hostinger se conserva el PVC de MinIO y las credenciales dedicadas viajan cifradas por SOPS. catalog-api recibe `S3_ENDPOINT`, `S3_BUCKET`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` y `PUBLIC_API_BASE_URL` con credenciales dedicadas limitadas al bucket (no las raíz); panel-api recibe `CATALOG_API_BASE_URL`. La carpeta, el bucket, la política y las credenciales se documentan manualmente en `docs/product-images.md`. El mismo corte añade overlays de depuración local (JDWP) para los APIs Java solo en Minikube, con `JAVA_DEBUG_OPTS` y un puerto por API, más la documentación de VS Code en `README.md`. No se implementa lógica de imágenes en las aplicaciones ni se toca Terraform.
 
 ## Estado de partida
 
@@ -12,6 +12,7 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 - `panel-api` (`kubernetes/base/panel-api/deployment.yaml`) ya expone el ConfigMap `panel-api-config` con `ACCOUNT_API_BASE_URL`; falta `CATALOG_API_BASE_URL`.
 - Secretos por overlay: `app-secrets` en Minikube (`kubernetes/overlays/minikube/resources/secrets.yaml`) y placeholder Hostinger (`kubernetes/overlays/hostinger/secrets.placeholder.yaml`). `platform-secrets` ya tiene `minio-root-user` / `minio-root-password`.
 - El montaje del workspace ya lo garantiza `scripts/ensure-minikube-mount.sh` en `/friendly-e-shop`; `scripts/deploy.sh` lo invoca antes de aplicar. Ese montaje es `9p` y no sirve como backend vivo de MinIO.
+- `scripts/java-dev-reload.sh` ya arranca los APIs Java con recarga en caliente en los pods `:live`; el overlay Minikube monta ese script desde el ConfigMap `java-dev-reload` (`patches/live/*-api.yaml`). Ya existe el patrón de patches de `env` por API (`account-api-env-patch.yaml`, `panel-api-env-patch.yaml`).
 - No hay Terraform involucrado: MinIO, PVC y secretos viven en Kustomize.
 
 ## Alcance y límites
@@ -22,6 +23,7 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 - Variables de entorno S3 y `PUBLIC_API_BASE_URL` de `catalog-api` (endpoint, bucket y URL pública no secretos; claves desde `app-secrets`).
 - `CATALOG_API_BASE_URL` de `panel-api` en el ConfigMap de la base.
 - Claves de credenciales dedicadas en `app-secrets` de Minikube y en el placeholder de Hostinger (SOPS).
+- Overlays de depuración JDWP por API en Minikube (`patches/*-debug.yaml`), el soporte de `JAVA_DEBUG_OPTS` en `scripts/java-dev-reload.sh` y la sección de VS Code en `README.md`.
 - Documento operativo `docs/product-images.md`.
 - Validación con `make validate` y verificación local con el script de bucket + `make smoke-test` si Minikube está disponible.
 
@@ -62,13 +64,14 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 2. La carpeta local de respaldo solo se crea cuando el operador corre `make backup-images` (sección 3); no bloquea el despliegue (RF-4).
 3. Documentar en `docs/product-images.md` que el script se puede correr suelto (`./scripts/ensure-product-images-bucket.sh`) y que es seguro repetirlo.
 
-### 3. Respaldo local de las imágenes en Minikube (RF-3, RF-4, RF-14, RF-17)
+### 3. Respaldo local de las imágenes en Minikube (RF-3, RF-4, RF-14, RF-17, RF-25, RF-26)
 
 1. MinIO conserva `volumeClaimTemplates` (PVC) en Minikube y Hostinger. **No** se parchea el volumen a `hostPath`: `minikube mount` expone el workspace como `9p`, que no soporta las semánticas de *rename* del backend de MinIO (`FATAL ... Rename across devices not allowed`), por lo que la carpeta local no puede ser el backend vivo.
 2. Crear `scripts/backup-images.sh`: port-forward a `service/minio` (patrón `scripts/backup.sh`), `mc alias set` con las credenciales raíz de `platform-secrets` (administración) y `mc mirror --overwrite friendly/product-images "$PRODUCT_IMAGES_DIR"`, creando la carpeta si no existe. `PRODUCT_IMAGES_DIR` por defecto `/Users/dariogutierrez/projects/friendly-e-shop/media/images` (RF-3, RF-4).
-3. Crear `scripts/restore-images.sh`: mismo alias y `mc mirror --overwrite "$PRODUCT_IMAGES_DIR" friendly/product-images`, tras `mc mb --ignore-existing` (RF-14).
+3. Crear `scripts/restore-images.sh`: mismo alias y `mc mirror "$PRODUCT_IMAGES_DIR" friendly/product-images`, tras `mc mb --ignore-existing` (RF-14). Con `RESTORE_OVERWRITE=1` (default) usa `--overwrite`; con `0` copia solo los objetos faltantes (RF-26).
 4. Añadir los targets `backup-images`/`restore-images` al `Makefile` y documentar ambos comandos en `docs/product-images.md` (RF-12, RF-17).
-5. Hostinger no usa la carpeta local: conserva `volumeClaimTemplates` de la base (PVC) (RF-15).
+5. Automatizar el ciclo de vida (RF-25, RF-26): `make destroy` ejecuta `scripts/backup-images.sh` antes de `minikube delete` solo si el perfil está `Running` y continúa aunque falle; `scripts/deploy.sh` ejecuta `RESTORE_OVERWRITE=0 scripts/restore-images.sh` tras `ensure-product-images-bucket.sh` si existe la carpeta local (`make deploy` es el paso que sigue a `make minikube-create`; MinIO no existe al crear el clúster).
+6. Hostinger no usa la carpeta local: conserva `volumeClaimTemplates` de la base (PVC) (RF-15).
 
 ### 4. Credenciales dedicadas en los secretos (RF-7, RF-8, RF-9, RF-13, RF-15)
 
@@ -127,6 +130,15 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 4. Comprobar que un objeto de prueba llega a la carpeta local con `make backup-images` y que `make restore-images` lo devuelve al bucket.
 5. `git grep` de las claves dedicadas: no deben aparecer en claro fuera de los secretos de desarrollo/placeholder.
 
+### 10. Depuración local de los APIs Java (RF-18 … RF-24)
+
+1. Crear `kubernetes/overlays/minikube/patches/catalog-api-debug.yaml`, `account-api-debug.yaml`, `order-api-debug.yaml` y `payment-api-debug.yaml`: patch estratégico sobre el contenedor del API que añade `JAVA_DEBUG_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:<puerto>` con 5005/5006/5007/5008 (RF-18, RF-19, RF-20).
+2. Referenciar los cuatro patches en `kubernetes/overlays/minikube/kustomization.yaml` (RF-18).
+3. En `scripts/java-dev-reload.sh`, cuando `JAVA_DEBUG_OPTS` no esté vacío, añadirlo a los argumentos de la JVM de Spring Boot (`-Dspring-boot.run.jvmArguments`); si está ausente, no agregar nada (RF-22, RF-23).
+4. No tocar el overlay Hostinger: no incluye estos patches, así que el depurador queda deshabilitado (RF-21).
+5. Documentar en `README.md` la sección de depuración: perfiles de VS Code, puertos por API y el port-forward temporal que abre el IDE (RF-24).
+6. El agente escucha en `127.0.0.1` dentro del pod; el acceso es exclusivamente por port-forward (RF-20).
+
 ## Mapa RF → trabajo
 
 | RF | Piezas del plan |
@@ -148,6 +160,13 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 | RF-15 | §3 base conserva PVC; §4 placeholder + SOPS |
 | RF-16 | §6b `PUBLIC_API_BASE_URL` por overlay |
 | RF-17 | §3 scripts + targets del Makefile |
+| RF-18 | §10 patches debug y su referencia en el overlay Minikube |
+| RF-19 | §10 puerto JDWP por API (5005–5008) |
+| RF-20 | §10 `address=127.0.0.1`, acceso por port-forward |
+| RF-21 | §10 el overlay Hostinger no incluye patches de debug |
+| RF-22 | §10 `java-dev-reload.sh` añade `JAVA_DEBUG_OPTS` |
+| RF-23 | §10 sin `JAVA_DEBUG_OPTS` el API no expone JDWP |
+| RF-24 | §10 sección de depuración en `README.md` |
 | Todos (validación) | §9 `make validate` y verificación local |
 
 ## Criterios de verificación
@@ -159,6 +178,8 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 - `app-secrets` de Minikube y placeholder Hostinger contienen `product-images-access-key`/`product-images-secret-key`; el árbol versionado no tiene credenciales reales en claro.
 - `scripts/ensure-product-images-bucket.sh` corre dos veces seguidas sin fallar y deja bucket, política y usuario dedicados.
 - `platform-ingress` conserva el puerto 9000 desde `apps`.
+- El overlay Minikube habilita `JAVA_DEBUG_OPTS` con puertos 5005–5008 en los cuatro APIs Java; el overlay Hostinger no define `JAVA_DEBUG_OPTS`.
+- `scripts/java-dev-reload.sh` añade `JAVA_DEBUG_OPTS` a la JVM solo cuando está definido.
 - `make validate` en verde.
 
 ## Notas
@@ -168,3 +189,4 @@ Aprovisionar el bucket `product-images` en MinIO y cablearlo hasta catalog-api y
 - La carpeta local es un destino de respaldo a demanda; el almacenamiento vivo de MinIO es el PVC. El respaldo debe ejecutarse antes de `make destroy`.
 - Las credenciales de desarrollo de Minikube y el placeholder `REPLACE_ME` de Hostinger no son secretos de producción.
 - `catalog-api` es el dueño de las claves S3 y de la URL pública; este plan sólo las entrega por entorno, sin tocar la lógica del servicio.
+- La depuración JDWP es exclusiva de Minikube y escucha en `127.0.0.1`; el overlay Hostinger no la habilita.

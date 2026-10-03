@@ -14,6 +14,11 @@ if [ ! -d "$SRC" ]; then
   exit 1
 fi
 
+mirror_flags=()
+if [ "${RESTORE_OVERWRITE:-1}" = "1" ]; then
+  mirror_flags=(--overwrite)
+fi
+
 kubectl -n platform port-forward service/minio "$PORT:9000" >/tmp/friendly-e-shop-minio-forward.log 2>&1 &
 forward_pid=$!
 trap 'kill "$forward_pid" 2>/dev/null || true' EXIT
@@ -21,6 +26,6 @@ sleep 3
 
 mc alias set friendly "http://127.0.0.1:$PORT" "$USER" "$PASSWORD" >/dev/null
 mc mb --ignore-existing "friendly/$BUCKET" >/dev/null
-mc mirror --overwrite "$SRC" "friendly/$BUCKET" >/dev/null
+mc mirror "${mirror_flags[@]}" "$SRC" "friendly/$BUCKET" >/dev/null
 
 echo "Product images restored to friendly/$BUCKET"
