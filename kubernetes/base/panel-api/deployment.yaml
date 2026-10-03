@@ -51,6 +51,7 @@ data:
   DATABASE_USERNAME: panel
   ALLOWED_HOSTS: "*"
   ACCOUNT_API_BASE_URL: http://account-api.apps.svc.cluster.local:8080
+  CATALOG_API_BASE_URL: http://catalog-api.apps.svc.cluster.local:8080
   OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318
   OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
   OTEL_RESOURCE_ATTRIBUTES: deployment.environment=base,service.namespace=friendly-e-shop

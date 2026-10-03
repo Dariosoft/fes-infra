@@ -27,6 +27,10 @@ Local endpoints:
 
 On macOS with Docker Desktop, run `minikube tunnel -p friendly-e-shop` and map `market.friendly-e-shop.duckdns.org`, `panel.friendly-e-shop.duckdns.org`, `api.friendly-e-shop.duckdns.org` and `grafana.friendly-e-shop.test` to `127.0.0.1` in `/etc/hosts`. `make smoke-test` uses a temporary port-forward and does not require either step. Grafana development credentials are `admin` / `grafana-local`. The DuckDNS certificate installed by `make deploy` is local; the browser will ask before trusting HTTPS.
 
+## Debugging catalog-api
+
+After applying the Minikube overlay with `make deploy`, choose a Java API attach profile in VS Code and press F5. The IDE opens a temporary port-forward to the selected running pod and closes it when the debug session ends. Available profiles are `catalog-api` (5005), `account-api` (5006), `order-api` (5007) and `payment-api` (5008). Minikube enables JDWP only for these local deployments; the Hostinger overlay does not enable the debugger. Requests through the local API Ingress are handled by the same pods attached to VS Code.
+
 RabbitMQ and MinIO management interfaces remain internal. Access them with port forwarding:
 
 ```bash
@@ -34,23 +38,6 @@ kubectl -n platform port-forward service/rabbitmq 15672:15672
 kubectl -n platform port-forward service/minio 9001:9001
 ```
 
-## Commands
-
-| Command | Action |
-|---|---|
-| `make bootstrap` | Install required CLI tools with Homebrew |
-| `make doctor` | Verify tools and Docker |
-| `make minikube-create` | Create the local cluster and addons |
-| `make stop` | Stop the cluster, the source mount, and the tunnel. Disk data is kept |
-| `make start` | Start a stopped cluster and mount the local checkouts again |
-| `make images-build` | Build the production-style application images inside Minikube |
-| `make deploy` | Mount the local checkouts, apply the Minikube overlay, and wait for the applications |
-| `make status` | Show pods, ingress and storage |
-| `make smoke-test` | Test public routes |
-| `make tunnel` | Expose local ingress routes until stopped with Ctrl+C |
-| `make observability` | Port-forward Grafana |
-| `make backup` | Back up PostgreSQL databases to MinIO |
-| `make validate` | Validate Kustomize and Terraform |
-| `make destroy` | Delete the Minikube profile |
+## Use production
 
 See `docs/architecture.md`, `docs/stack.md`, `docs/secrets.md`, `docs/backups.md`, `docs/hostinger.md`, `docs/validation.md` and `docs/IMPLEMENTATION_PLAN.md` before changing the production-oriented template.
