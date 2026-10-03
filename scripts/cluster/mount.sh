@@ -1,13 +1,10 @@
 #!/usr/bin/env bash
-set -euo pipefail
+. "$(dirname "$0")/../lib/common.sh"
 
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
-WORKSPACE=$(cd "$ROOT/.." && pwd)
-PROFILE=${MINIKUBE_PROFILE:-friendly-e-shop}
 MOUNT_LOG=/tmp/friendly-e-shop-minikube-mount.log
 
 if ! minikube --profile "$PROFILE" ssh -- ls /friendly-e-shop/panel-web/package.json >/dev/null 2>&1; then
-  echo "Mounting $WORKSPACE into the Minikube node at /friendly-e-shop"
+  log_info "Mounting $WORKSPACE into the Minikube node at /friendly-e-shop"
   python3 - "$PROFILE" "$WORKSPACE" "$MOUNT_LOG" <<'PY'
 import subprocess
 import sys
@@ -29,7 +26,7 @@ PY
     sleep 1
   done
   if ! minikube --profile "$PROFILE" ssh -- ls /friendly-e-shop/panel-web/package.json >/dev/null 2>&1; then
-    echo "The source mount did not become visible. See $MOUNT_LOG" >&2
+    log_error "The source mount did not become visible. See $MOUNT_LOG"
     exit 1
   fi
 fi

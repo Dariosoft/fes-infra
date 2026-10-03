@@ -90,12 +90,12 @@ The dedicated credentials are **not** the MinIO root credentials (`minio-root-us
 
 ### Minikube: idempotent script
 
-`make deploy` calls `scripts/ensure-product-images-bucket.sh` automatically after MinIO is ready.
+`make deploy` calls `scripts/storage/ensure-bucket.sh` automatically after MinIO is ready.
 It opens a temporary port-forward (`MINIO_FORWARD_PORT`, default `19001`), creates the bucket,
 policy and dedicated user, and is safe to run again:
 
 ```bash
-./scripts/ensure-product-images-bucket.sh
+./scripts/storage/ensure-bucket.sh
 ```
 
 Repeating it never duplicates the bucket and never fails when the bucket, policy or user already
@@ -126,7 +126,7 @@ The dedicated credentials live in `app-secrets` as `product-images-access-key` a
   (`catalog-images` / `catalog-images-local`). They are not production secrets.
 - **Hostinger:** `kubernetes/overlays/hostinger/secrets.placeholder.yaml` ships the keys as
   `REPLACE_ME`. Replace them, then encrypt with SOPS before deploying
-  (`AGE_RECIPIENT=age1... ./scripts/encrypt-secrets.sh` and swap the resource to
+  (`AGE_RECIPIENT=age1... ./scripts/secrets/encrypt.sh` and swap the resource to
   `secrets.enc.yaml`). See [`secrets.md`](secrets.md) for the full flow.
 
 Never commit the real credentials in clear text, and never reuse `minio-root-*` for the application.
@@ -152,7 +152,7 @@ material and the public API URL used to build image links.
 Following the spec, nothing is invented:
 
 - If the bucket does not exist, create it with the script (Minikube) or with `mc mb` (Hostinger).
-- If the dedicated keys are missing from `app-secrets`, `scripts/ensure-product-images-bucket.sh`
+- If the dedicated keys are missing from `app-secrets`, `scripts/storage/ensure-bucket.sh`
   creates the bucket and warns instead of guessing values, and catalog-api will not receive valid
   S3 credentials until the operator sets them. Set the keys and rerun the script.
 

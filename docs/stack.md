@@ -209,7 +209,7 @@ La conversación separó responsabilidades: **Kustomize configura lo que vive de
 | **TLS Secret** | `friendly-e-shop-tls` | Certificado servido por el Ingress de Hostinger | [Ingress TLS](https://kubernetes.io/docs/concepts/services-networking/ingress/#tls) |
 | **DNS** | registros A hacia el IPv4 del VPS (manual) | `shop`, `panel` y `api` del dominio real | ver [`hostinger.md`](hostinger.md) |
 | **kubectl port-forward** | CLI | Acceso temporal a Grafana, MinIO, RabbitMQ y al Ingress en smoke tests | [port-forward](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster/) |
-| **curl `--resolve`** | `smoke-test.sh` | Prueba Ingress sin depender de `/etc/hosts` | [curl](https://curl.se/docs/manpage.html) |
+| **curl `--resolve`** | `checks/smoke-test.sh` | Prueba Ingress sin depender de `/etc/hosts` | [curl](https://curl.se/docs/manpage.html) |
 
 ---
 
@@ -274,7 +274,7 @@ Las apps locales se taguean `friendly-e-shop/<servicio>:dev`. MinIO se construye
 | **tslib** | `2.8.1` | Helpers de TypeScript (`importHelpers`) en Angular | [tslib](https://www.typescriptlang.org/tsconfig/#importHelpers) |
 | **pip** | el de la imagen Python | Instala `requirements.txt` | [pip](https://pip.pypa.io/en/stable/) |
 | **Go toolchain** | `1.24.8`, `CGO_ENABLED=0` | Binario estático de MinIO | [go install](https://go.dev/ref/mod#go-install) |
-| **minikube image build** | `infra/scripts/images-build.sh` | Construye las siete apps + MinIO dentro del daemon de Minikube | [minikube image](https://minikube.sigs.k8s.io/docs/commands/image/) |
+| **minikube image build** | `infra/scripts/build/images.sh` | Construye las siete apps + MinIO dentro del daemon de Minikube | [minikube image](https://minikube.sigs.k8s.io/docs/commands/image/) |
 
 `JAVA_TOOL_OPTIONS` fija `-XX:MaxRAMPercentage=75` y `-XX:+UseContainerSupport` para respetar el cgroup del pod.
 
@@ -318,10 +318,10 @@ Los frontends no hablan con Loki/Prometheus: la conversación dejó explícito q
 | **AssertJ** | via `spring-boot-starter-test` | Aserciones fluidas en esos tests | [AssertJ](https://assertj.github.io/doc/) |
 | **Django `SimpleTestCase`** | `panel-api/shops/tests.py` | Resuelve URLs del panel | [Testing en Django](https://docs.djangoproject.com/en/5.2/topics/testing/) |
 | **`npm run test`** | `client-web` y `panel-web` | Gate = build de producción | [npm scripts](https://docs.npmjs.com/cli/v11/using-npm/scripts) |
-| **kubeconform** | `infra/scripts/validate.sh` | Valida el YAML renderizado por Kustomize contra el schema de Kubernetes | [kubeconform](https://github.com/yannh/kubeconform) |
-| **`terraform validate` / `fmt -check`** | `validate.sh` | Comprueba el módulo Hostinger sin aplicar | [terraform validate](https://developer.hashicorp.com/terraform/cli/commands/validate) |
+| **kubeconform** | `infra/scripts/checks/validate.sh` | Valida el YAML renderizado por Kustomize contra el schema de Kubernetes | [kubeconform](https://github.com/yannh/kubeconform) |
+| **`terraform validate` / `fmt -check`** | `checks/validate.sh` | Comprueba el módulo Hostinger sin aplicar | [terraform validate](https://developer.hashicorp.com/terraform/cli/commands/validate) |
 | **curl** | smoke tests y descargas del agent OTEL | HTTP de Ingress y artefactos | [curl](https://curl.se/docs/) |
-| **`make smoke-test`** | `infra/scripts/smoke-test.sh` | Storefront, panel y rutas `/accounts`, `/catalog`, `/orders`, `/payments`, `/panel` | ver [`validation.md`](validation.md) |
+| **`make smoke-test`** | `infra/scripts/checks/smoke-test.sh` | Storefront, panel y rutas `/accounts`, `/catalog`, `/orders`, `/payments`, `/panel` | ver [`validation.md`](validation.md) |
 
 ---
 
@@ -340,20 +340,27 @@ Scripts en `infra/scripts/`:
 
 | Script | Función |
 |---|---|
-| `bootstrap.sh` | `brew bundle` del Brewfile |
-| `doctor.sh` | Comprueba docker, kubectl, minikube, kustomize, kubeconform, terraform, sops, age, mc y curl |
-| `minikube-create.sh` | Crea el perfil y habilita ingress + metrics-server |
-| `minikube-stop.sh` | Detiene el perfil, el montaje de código y el tunnel. Conserva discos e imágenes |
-| `minikube-start.sh` | Vuelve a arrancar un perfil detenido y monta los checkouts locales |
-| `ensure-minikube-mount.sh` | Deja el árbol local montado en el nodo si todavía no lo está |
-| `images-build.sh` | Build de las siete apps + MinIO en Minikube |
-| `deploy.sh` | Monta los checkouts locales, aplica el overlay de Minikube y espera los rollouts. El código se sirve desde esas carpetas; `FORCE_LIVE_BUILD=1` reconstruye las imágenes `:live` tras un cambio de dependencias |
-| `status.sh` | Pods, Ingress y PVC |
-| `smoke-test.sh` | HTTP de las rutas públicas |
-| `observability.sh` | Port-forward de Grafana `:3000` |
-| `backup.sh` / `restore.sh` | `pg_dump`/`pg_restore` vía MinIO |
-| `validate.sh` | Kustomize + kubeconform + Terraform |
-| `encrypt-secrets.sh` | SOPS + age para Hostinger |
+| `setup/bootstrap.sh` | `brew bundle` del Brewfile |
+| `checks/doctor.sh` | Comprueba docker, kubectl, minikube, kustomize, kubeconform, terraform, sops, age, mc y curl |
+| `cluster/create.sh` | Crea el perfil y habilita ingress + metrics-server |
+| `cluster/start.sh` | Vuelve a arrancar un perfil detenido y monta los checkouts locales |
+| `cluster/stop.sh` | Detiene el perfil, el montaje de código y el tunnel. Conserva discos e imágenes |
+| `cluster/destroy.sh` | Respalda las imágenes y borra el perfil de Minikube |
+| `cluster/tunnel.sh` | Expone por port-forward el Ingress, PostgreSQL y MinIO |
+| `cluster/mount.sh` | Deja el árbol local montado en el nodo si todavía no lo está |
+| `cluster/tls.sh` | Instala el certificado TLS local de los nombres DuckDNS |
+| `build/images.sh` | Build de las siete apps + MinIO en Minikube |
+| `deploy/deploy.sh` | Monta los checkouts locales, aplica el overlay de Minikube y espera los rollouts. El código se sirve desde esas carpetas; `FORCE_LIVE_BUILD=1` reconstruye las imágenes `:live` tras un cambio de dependencias |
+| `runtime/java-dev-reload.sh` | Recarga Java dentro del contenedor (script montado, `#!/bin/sh`) |
+| `storage/ensure-bucket.sh` | Aprovisiona el bucket, la política y el usuario de product-images |
+| `storage/backup-images.sh` / `storage/restore-images.sh` | `mc mirror` entre MinIO y la carpeta local de imágenes |
+| `databases/backup.sh` / `databases/restore.sh` | `pg_dump`/`pg_restore` vía MinIO |
+| `secrets/encrypt.sh` | SOPS + age para Hostinger |
+| `secrets/load-google-oauth.sh` | Carga el cliente OAuth de Google en `app-secrets` |
+| `checks/status.sh` | Pods, Ingress y PVC |
+| `checks/smoke-test.sh` | HTTP de las rutas públicas |
+| `checks/validate.sh` | Kustomize + kubeconform + Terraform |
+| `tools/observability.sh` | Port-forward de Grafana `:3000` |
 | `terraform/hostinger/scripts/bootstrap-k3s.sh` | apt, unattended-upgrades e instalación de K3s |
 
 ---

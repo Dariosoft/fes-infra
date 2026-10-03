@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-PROFILE=${MINIKUBE_PROFILE:-friendly-e-shop}
+. "$(dirname "$0")/../lib/common.sh"
 
 stop_matching() {
   local pattern="$1"
@@ -18,5 +16,5 @@ stop_matching "minikube --profile ${PROFILE} tunnel"
 stop_matching "minikube tunnel --profile ${PROFILE}"
 
 minikube stop --profile "$PROFILE"
-echo "Minikube profile '$PROFILE' is stopped. Disk data is kept."
-echo "Bring it back with make start, then run make tunnel if you use the local HTTPS names."
+log_info "Minikube profile '$PROFILE' is stopped. Disk data is kept."
+log_info "Bring it back with make start, then run make tunnel if you use the local HTTPS names."

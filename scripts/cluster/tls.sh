@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
+. "$(dirname "$0")/../lib/common.sh"
 
-PROFILE=${MINIKUBE_PROFILE:-friendly-e-shop}
 tmpdir=$(mktemp -d)
 trap 'rm -rf "$tmpdir"' EXIT
 
@@ -31,4 +30,4 @@ openssl req -x509 -nodes -days 825 -newkey rsa:2048 \
 kubectl --context "$PROFILE" -n apps create secret tls friendly-e-shop-tls \
   --cert="$tmpdir/tls.crt" --key="$tmpdir/tls.key" \
   --dry-run=client -o yaml | kubectl --context "$PROFILE" apply -f - >/dev/null
-echo "Installed local TLS certificate for friendly-e-shop.duckdns.org."
+log_info "Installed local TLS certificate for friendly-e-shop.duckdns.org."

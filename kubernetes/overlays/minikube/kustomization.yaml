@@ -10,7 +10,7 @@ configMapGenerator:
   - name: java-dev-reload
     namespace: apps
     files:
-      - reload.sh=../../../scripts/java-dev-reload.sh
+      - reload.sh=../../../scripts/runtime/java-dev-reload.sh
     options:
       disableNameSuffixHash: true
 patches:

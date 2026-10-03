@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+. "$(dirname "$0")/../lib/common.sh"
 
 PORT=${INGRESS_FORWARD_PORT:-18080}
 kubectl -n ingress-nginx port-forward service/ingress-nginx-controller "$PORT:80" >/tmp/friendly-e-shop-ingress-forward.log 2>&1 &
@@ -13,9 +13,9 @@ curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PO
 curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/orders" >/dev/null
 curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/payments" >/dev/null
 curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/panel" >/dev/null
-echo "Checking account service availability"
+log_info "Checking account service availability"
 if ! curl --fail --silent --show-error --resolve "api.friendly-e-shop.duckdns.org:$PORT:127.0.0.1" "http://api.friendly-e-shop.duckdns.org:$PORT/accounts" >/dev/null; then
-  echo "account service is not available" >&2
+  log_error "account service is not available"
   exit 1
 fi
-echo "Smoke tests passed"
+log_info "Smoke tests passed"

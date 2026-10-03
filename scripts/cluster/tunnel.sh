@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+. "$(dirname "$0")/../lib/common.sh"
 
 postgres_pid=
 minio_pid=

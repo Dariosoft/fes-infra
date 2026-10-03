@@ -1,7 +1,7 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 # Validation/CI keeps secrets.placeholder.yaml (REPLACE_ME only).
-# For a real Hostinger deploy: fill placeholders, run scripts/encrypt-secrets.sh,
+# For a real Hostinger deploy: fill placeholders, run scripts/secrets/encrypt.sh,
 # then replace the resource below with secrets.enc.yaml. Never commit plaintext
 # Google client secrets or the private age key; see docs/secrets.md.
 resources:
