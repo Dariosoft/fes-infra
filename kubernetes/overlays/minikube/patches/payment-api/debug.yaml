@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-api
+  namespace: apps
+spec:
+  template:
+    spec:
+      containers:
+        - name: payment-api
+          env:
+            - name: JAVA_DEBUG_OPTS
+              value: -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=127.0.0.1:5008

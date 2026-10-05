@@ -21,6 +21,7 @@ Gestiona Terraform, manifiestos Kubernetes, secretos cifrados, observabilidad y 
 - Lee `/terraform-style-guide` antes de crear o modificar archivos Terraform.
 - Usa `/terraform-module-library` al crear o refactorizar módulos Terraform reutilizables.
 - Usa `/k8s-manifest-generator` al crear o modificar recursos Kubernetes y conserva la estructura base/overlay.
+- Usa `/k8s-custom-good-practices` al tocar el `Makefile` o los parches del overlay de Minikube.
 - Usa `/secrets-management` para cambios de SOPS, credenciales o datos sensibles; nunca confirmes secretos en claro.
 - Usa `/opentelemetry` para cambios de telemetría y `/deployment-pipeline-design` para cambios de CI/CD.
 - Cada backend conserva su propia base y credenciales; ningún servicio puede acceder a tablas de otro dominio.

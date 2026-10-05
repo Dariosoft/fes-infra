@@ -1,68 +1,76 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: bootstrap doctor minikube-create start stop images-build deploy status smoke-test tunnel observability backup restore validate destroy
+.PHONY: bootstrap doctor minikube-create start stop images-build deploy status smoke-test tunnel observability backup restore backup-images restore-images validate destroy
 
 # Installs the required local CLI tools with Homebrew.
 bootstrap:
-	./scripts/bootstrap.sh
+	./scripts/setup/bootstrap.sh
 
 # Checks that the required tools and Docker are available.
 doctor:
-	./scripts/doctor.sh
+	./scripts/checks/doctor.sh
 
-# Creates the Minikube cluster and enables its required addons.
+# Creates the Minikube cluster and enables its required addons. Run 'make deploy' next to restore saved product images.
 minikube-create:
-	./scripts/minikube-create.sh
+	./scripts/cluster/create.sh
 
 # Starts a stopped Minikube profile and mounts the local checkouts again.
 start:
-	./scripts/minikube-start.sh
+	./scripts/cluster/start.sh
 
 # Stops the Minikube profile, the source mount, and the tunnel. Disk data is kept.
 stop:
-	./scripts/minikube-stop.sh
+	./scripts/cluster/stop.sh
 
 # Builds all application container images inside Minikube.
 images-build:
-	./scripts/images-build.sh
+	./scripts/build/images.sh
 
 # Mounts local checkouts, applies the Minikube overlay, and waits for the applications.
 deploy:
-	./scripts/deploy.sh
+	./scripts/deploy/deploy.sh
 
 # Forces a redeploy of the LOCAL applications, even if the manifests have not changed.
 force-deploy:
-	FORCE_LIVE_BUILD=1 ./scripts/deploy.sh
+	FORCE_LIVE_BUILD=1 ./scripts/deploy/deploy.sh
 
 # Shows the current state of pods, ingress routes, and storage.
 status:
-	./scripts/status.sh
+	./scripts/checks/status.sh
 
 # Verifies that the public application routes respond correctly.
 smoke-test:
-	./scripts/smoke-test.sh
+	./scripts/checks/smoke-test.sh
 
-# Exposes the local ingress routes until the command is stopped with Ctrl+C.
+# Exposes local ingress routes and development dependencies until Ctrl+C.
 tunnel:
-	minikube tunnel --profile "$${MINIKUBE_PROFILE:-friendly-e-shop}"
+	./scripts/cluster/tunnel.sh
 
 # Opens a local port-forward to the Grafana interface.
 observability:
-	./scripts/observability.sh
+	./scripts/tools/observability.sh
 
 # Backs up the PostgreSQL databases to MinIO.
 backup:
-	./scripts/backup.sh
+	./scripts/databases/backup.sh
 
 # Restores DATABASE from a MinIO OBJECT; both variables are required.
 restore:
 	@test -n "$(DATABASE)" -a -n "$(OBJECT)" || (echo "Use DATABASE=name OBJECT=file make restore"; exit 1)
-	./scripts/restore.sh "$(DATABASE)" "$(OBJECT)"
+	./scripts/databases/restore.sh "$(DATABASE)" "$(OBJECT)"
+
+# Mirrors the product-images bucket from MinIO to the local media/images folder.
+backup-images:
+	./scripts/storage/backup-images.sh
+
+# Uploads the local media/images folder back into the MinIO product-images bucket.
+restore-images:
+	./scripts/storage/restore-images.sh
 
 # Validates the Kubernetes manifests and Terraform configuration.
 validate:
-	./scripts/validate.sh
+	./scripts/checks/validate.sh
 
-# Permanently deletes the local Minikube profile and its data.
+# Backs up product images (best effort) and permanently deletes the local Minikube profile and its data.
 destroy:
-	minikube delete --profile "$${MINIKUBE_PROFILE:-friendly-e-shop}"
+	./scripts/cluster/destroy.sh

@@ -28,6 +28,10 @@ spec:
             - {name: RABBITMQ_HOST, value: rabbitmq.platform.svc.cluster.local}
             - {name: RABBITMQ_USERNAME, value: app}
             - {name: RABBITMQ_PASSWORD, valueFrom: {secretKeyRef: {name: app-secrets, key: rabbitmq-password}}}
+            - {name: S3_ENDPOINT, value: http://minio.platform.svc.cluster.local:9000}
+            - {name: S3_BUCKET, value: product-images}
+            - {name: S3_ACCESS_KEY, valueFrom: {secretKeyRef: {name: app-secrets, key: product-images-access-key}}}
+            - {name: S3_SECRET_KEY, valueFrom: {secretKeyRef: {name: app-secrets, key: product-images-secret-key}}}
             - name: OTEL_RESOURCE_ATTRIBUTES
               value: "deployment.environment=base,service.namespace=friendly-e-shop"
           startupProbe: {httpGet: {path: /actuator/health/liveness, port: http}, failureThreshold: 30, periodSeconds: 5}
