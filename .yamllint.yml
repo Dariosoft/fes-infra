@@ -11,8 +11,5 @@ rules:
   line-length: disable
   # Ningún archivo del repo abre con el separador de documento.
   document-start: disable
-  # Cuatro patches de debug del overlay de Minikube no terminan en salto de
-  # línea; normalizarlos es deuda cosmética aparte de este cambio.
-  new-line-at-end-of-file: disable
   truthy:
     check-keys: false
