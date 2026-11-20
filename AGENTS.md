@@ -9,12 +9,17 @@ Gestiona Terraform, manifiestos Kubernetes, secretos cifrados, observabilidad y 
 - Diagnóstico local: `make doctor`
 - Desplegar en Minikube: `make deploy`
 - Validar Kubernetes y Terraform: `make validate`
+- Lint de scripts, YAML y Dockerfile: `make lint`
+- Políticas de postura sobre los manifiestos renderizados: `make policy`
+- Coherencia de referencias cruzadas: `make consistency`
+- Verificación completa, igual a la de CI: `make verify`
 - Prueba de humo: `make smoke-test`
 
 ## Estilo y convenciones
 - Mantén Terraform bajo `terraform/`, bases y overlays de Kubernetes bajo `kubernetes/` y automatización bajo `scripts/`.
 - Conserva módulos, variables, outputs y restricciones de versión explícitos; no hardcodees valores propios de un entorno.
 - Usa Kustomize para diferencias entre Minikube y Hostinger; no dupliques manifiestos completos entre overlays.
+- Las políticas de `policy/` se evalúan sobre el resultado de `kustomize build`: si agregas una regla que el overlay de Minikube no puede cumplir por diseño, va en `production.rego`, no en `k8s.rego`.
 - Documenta en `docs/` cualquier cambio de topología, operación, secretos, backup u observabilidad.
 
 ## Reglas
@@ -29,6 +34,7 @@ Gestiona Terraform, manifiestos Kubernetes, secretos cifrados, observabilidad y 
 - Mantén las imágenes y configuración de las aplicaciones coordinadas con sus repositorios propietarios.
 
 ## Al terminar cualquier tarea
-- Ejecuta `make validate` para cambios en Terraform o Kubernetes.
+- Ejecuta `make verify` para cambios en Terraform, Kubernetes, `scripts/` o `policy/`.
 - Ejecuta `make smoke-test` cuando el cambio afecte rutas, servicios, ingress o despliegues locales.
 - Comprueba que no se hayan añadido estados, planes, variables sensibles ni secretos descifrados al repositorio.
+- Activa una vez por clon el hook local con `git config core.hooksPath .githooks`.

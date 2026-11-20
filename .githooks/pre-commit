@@ -1,0 +1,27 @@
+#!/bin/sh
+# Blocks commits that add obvious credentials or local state. Fast and
+# dependency-free: the full scan runs in CI with Trivy's secret scanner.
+#
+# Enable once per clone with: git config core.hooksPath .githooks
+set -eu
+
+patterns='BEGIN [A-Z ]*PRIVATE KEY|gh[pousr]_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{40}|AKIA[0-9A-Z]{16}|xox[baprs]-[A-Za-z0-9-]{10}|sk_live_[A-Za-z0-9]{20}|AIza[0-9A-Za-z_-]{35}'
+state='(^|/)(\.env|.*\.decrypted\.yaml|.*\.agekey|.*\.tfvars|.*\.tfstate.*|.*\.tfplan)$'
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+added=$(git diff --cached -U0 | grep -E '^\+[^+]' || true)
+
+if printf '%s\n' "$staged" | grep -qE "$state"; then
+    echo 'Commit blocked: local state or plaintext secrets staged.' >&2
+    printf '%s\n' "$staged" | grep -E "$state" >&2
+    echo 'Remove them from the index; see docs/secrets.md.' >&2
+    exit 1
+fi
+
+if printf '%s\n' "$added" | grep -qE "$patterns"; then
+    echo 'Commit blocked: the staged changes look like they contain a credential.' >&2
+    echo 'Matching lines (truncated):' >&2
+    printf '%s\n' "$added" | grep -E "$patterns" | cut -c1-120 >&2
+    echo 'Remove it, rotate it if it was real, and stage again.' >&2
+    exit 1
+fi

@@ -1,6 +1,6 @@
 SHELL := /usr/bin/env bash
 
-.PHONY: bootstrap doctor minikube-create start stop images-build deploy status smoke-test tunnel observability backup restore backup-images restore-images validate destroy
+.PHONY: bootstrap doctor minikube-create start stop images-build deploy status smoke-test tunnel observability backup restore backup-images restore-images validate lint policy consistency verify destroy
 
 # Installs the required local CLI tools with Homebrew.
 bootstrap:
@@ -70,6 +70,22 @@ restore-images:
 # Validates the Kubernetes manifests and Terraform configuration.
 validate:
 	./scripts/checks/validate.sh
+
+# Lints the shell scripts, the YAML and the Dockerfile, and checks that no
+# sensitive material is versioned.
+lint:
+	./scripts/checks/lint.sh
+
+# Evaluates the posture policies over the rendered manifests of both overlays.
+policy:
+	./scripts/checks/policy.sh
+
+# Checks the cross-references between base manifests, ingress and secrets.
+consistency:
+	./scripts/checks/consistency.py
+
+# Everything CI runs, in the same order. It never touches a cluster.
+verify: validate lint policy consistency
 
 # Backs up product images (best effort) and permanently deletes the local Minikube profile and its data.
 destroy:
