@@ -1,0 +1,15 @@
+extends: default
+
+ignore: |
+  .terraform/
+  **/.terraform/
+  **/*.enc.yaml
+
+rules:
+  # Los manifiestos usan mapeos en línea (`{name: x, value: y}`) y rutas de
+  # servicio largas a propósito: cortar esas líneas los vuelve ilegibles.
+  line-length: disable
+  # Ningún archivo del repo abre con el separador de documento.
+  document-start: disable
+  truthy:
+    check-keys: false

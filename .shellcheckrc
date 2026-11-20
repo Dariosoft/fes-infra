@@ -1,0 +1,4 @@
+# Los scripts comparten variables y funciones a través de scripts/lib/*.sh
+# (se cargan con `source`), así que ShellCheck no puede ver su uso desde el
+# archivo que las define y reporta SC2034 en las librerías.
+disable=SC2034

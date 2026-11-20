@@ -1,0 +1,8 @@
+# DL3008 exige fijar la versión de los paquetes de apt-get. Acá el único
+# paquete es ca-certificates sobre debian:13.1-slim: fijarlo a mano obliga a
+# tocar el Dockerfile cada vez que Renovate sube la imagen base, a cambio de
+# ninguna ventaja real (el paquete viene del propio snapshot de Debian).
+ignored:
+  - DL3008
+
+failure-threshold: warning
