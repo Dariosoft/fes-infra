@@ -10,6 +10,9 @@ minikube --profile "$PROFILE" addons enable ingress
 minikube --profile "$PROFILE" addons enable metrics-server
 kubectl config use-context "$PROFILE" >/dev/null
 
+kubectl --context "$PROFILE" apply -f "$INFRA_ROOT/kubernetes/base/namespaces.yaml"
+log_info "Cluster namespaces are ready."
+
 ip=$(minikube --profile "$PROFILE" ip)
 log_info "Minikube node IP: $ip"
 log_info "On macOS with the Docker driver, run 'minikube tunnel -p $PROFILE' and map the local names to 127.0.0.1."

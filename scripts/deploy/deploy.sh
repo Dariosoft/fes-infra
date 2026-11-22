@@ -26,17 +26,36 @@ for service in "${services[@]}"; do
   built+=("$service")
 done
 
+# The patched MinIO release is not an app image and only changes when its pinned tag does,
+# so it is built on demand instead of on every deploy.
+minio_image=friendly-e-shop/minio:RELEASE.2025-10-15T17-29-55Z
+minio_built=0
+if ! minikube --profile "$PROFILE" image ls | grep -F "$minio_image" >/dev/null; then
+  log_info "Building $minio_image"
+  minikube --profile "$PROFILE" image build -t "$minio_image" "$INFRA_ROOT/images/minio"
+  minio_built=1
+fi
+
 "$INFRA_ROOT/scripts/cluster/tls.sh"
 kustomize build --load-restrictor LoadRestrictionsNone "$INFRA_ROOT/kubernetes/overlays/minikube" \
   | kubectl --context "$PROFILE" apply -f -
 "$INFRA_ROOT/scripts/secrets/load-google-oauth.sh"
 
+# account-api reads the OAuth client from app-secrets at startup, so it is restarted on
+# every deploy. Keeping it out of the loop below avoids annotating its pod template twice
+# in the same second, which kubectl rejects.
+restart=(deployment/account-api)
 if [ "${#built[@]}" -gt 0 ]; then
-  restart=()
   for service in "${built[@]}"; do
-    restart+=("deployment/${service}")
+    if [ "$service" != account-api ]; then
+      restart+=("deployment/${service}")
+    fi
   done
-  kubectl --context "$PROFILE" -n apps rollout restart "${restart[@]}"
+fi
+kubectl --context "$PROFILE" -n apps rollout restart "${restart[@]}"
+
+if [ "$minio_built" = 1 ]; then
+  kubectl --context "$PROFILE" -n platform rollout restart statefulset/minio
 fi
 
 wait_rollout platform statefulset/postgresql 300s

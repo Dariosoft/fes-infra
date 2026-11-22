@@ -16,6 +16,10 @@ fi
 
 minio_forward
 mc mb --ignore-existing "friendly/$MINIO_BUCKET" >/dev/null
-mc mirror "${mirror_flags[@]}" "$SRC" "friendly/$MINIO_BUCKET" >/dev/null
+if [ "${#mirror_flags[@]}" -gt 0 ]; then
+  mc mirror "${mirror_flags[@]}" "$SRC" "friendly/$MINIO_BUCKET" >/dev/null
+else
+  mc mirror "$SRC" "friendly/$MINIO_BUCKET" >/dev/null
+fi
 
 log_info "Product images restored to friendly/$MINIO_BUCKET"

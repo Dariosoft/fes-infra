@@ -5,7 +5,7 @@ se implementa lógica de catálogo ni CORS dentro de `catalog-api`.
 
 ## Relevamiento y decisión del valor
 
-- [ ] **T1. Confirmar el origen del Storefront de cada entorno**
+- [x] **T1. Confirmar el origen del Storefront de cada entorno**
   - Cubierta: RF-2, RF-3, RF-5
   - Verificar en `kubernetes/overlays/minikube/resources/ingress.yaml` (Ingress `storefront`) y en
     `kubernetes/overlays/hostinger/ingress.yaml` que el host del Storefront es
@@ -19,7 +19,7 @@ se implementa lógica de catálogo ni CORS dentro de `catalog-api`.
 
 ## Entrega por overlay
 
-- [ ] **T2. Añadir `BROWSER_ORIGINS` al patch de `catalog-api` en Minikube**
+- [x] **T2. Añadir `BROWSER_ORIGINS` al patch de `catalog-api` en Minikube**
   - Cubierta: RF-1, RF-2, RF-5, RF-12
   - En `kubernetes/overlays/minikube/patches/catalog-api/env-patch.yaml`, dentro del contenedor
     `catalog-api`, añadir `BROWSER_ORIGINS=https://market.friendly-e-shop.duckdns.org` junto a la
@@ -27,7 +27,7 @@ se implementa lógica de catálogo ni CORS dentro de `catalog-api`.
   - Done when: `kustomize build kubernetes/overlays/minikube` muestra `BROWSER_ORIGINS` con ese
     valor exacto y también `PUBLIC_API_BASE_URL` en el contenedor `catalog-api`.
 
-- [ ] **T3. Añadir `BROWSER_ORIGINS` al patch de `catalog-api` en Hostinger**
+- [x] **T3. Añadir `BROWSER_ORIGINS` al patch de `catalog-api` en Hostinger**
   - Cubierta: RF-3, RF-4, RF-5, RF-10, RF-12
   - En `kubernetes/overlays/hostinger/catalog-api-env-patch.yaml`, dentro del contenedor
     `catalog-api`, añadir `BROWSER_ORIGINS=https://market.REPLACE_BASE_DOMAIN` junto a
@@ -38,7 +38,7 @@ se implementa lógica de catálogo ni CORS dentro de `catalog-api`.
 
 ## Salvaguardas de la entrega
 
-- [ ] **T4. Comprobar que el merge conserva las variables previas (RF-7, RF-9)**
+- [x] **T4. Comprobar que el merge conserva las variables previas (RF-7, RF-9)**
   - Cubierta: RF-7, RF-9
   - Renderizar ambos overlays y contar el `env` del contenedor `catalog-api`: las diez variables de
     `kubernetes/base/catalog-api/deployment.yaml` (`DATABASE_*`, `RABBITMQ_*`, `S3_*`,
@@ -47,7 +47,7 @@ se implementa lógica de catálogo ni CORS dentro de `catalog-api`.
   - Done when: el env renderizado de cada overlay contiene la unión completa sin duplicados y el
     diff del corte no incluye `kubernetes/base/` ni manifiestos duplicados.
 
-- [ ] **T5. Verificar que no se introducen secretos ni cambios en otros servicios (RF-6, RF-8)**
+- [x] **T5. Verificar que no se introducen secretos ni cambios en otros servicios (RF-6, RF-8)**
   - Cubierta: RF-6, RF-8
   - Confirmar que `BROWSER_ORIGINS` se entrega con `value:` literal (sin `valueFrom`/`secretKeyRef`)
     y que no se tocan `kubernetes/overlays/minikube/resources/secrets.yaml`,
@@ -57,7 +57,7 @@ se implementa lógica de catálogo ni CORS dentro de `catalog-api`.
   - Done when: `git diff --stat` solo lista los dos patches de `catalog-api` y documentación, y
     `make lint` sigue pasando su chequeo de material sensible.
 
-- [ ] **T6. Confirmar la forma del valor: sin comodines, sin ruta, sin lista (RF-5, RF-10, RF-11)**
+- [x] **T6. Confirmar la forma del valor: sin comodines, sin ruta, sin lista (RF-5, RF-10, RF-11)**
   - Cubierta: RF-5, RF-10, RF-11
   - Revisar ambos valores: esquema `https`, sin barra final, sin ruta, sin `*`, sin sufijos comodín y
     sin un segundo origen (el del panel no se agrega); confirmar que el marcador de Hostinger no se
@@ -67,7 +67,7 @@ se implementa lógica de catálogo ni CORS dentro de `catalog-api`.
 
 ## Documentación y validación
 
-- [ ] **T7. Documentar el nuevo env en `docs/` (RF-4, RF-12)**
+- [x] **T7. Documentar el nuevo env en `docs/` (RF-4, RF-12)**
   - Cubierta: RF-4, RF-12 (apoyo documental)
   - En `docs/product-images.md` («Environment wiring»), añadir `BROWSER_ORIGINS` con sus dos valores
     por overlay y aclarar que es configuración pública; en `docs/hostinger.md`, indicar que
@@ -75,7 +75,7 @@ se implementa lógica de catálogo ni CORS dentro de `catalog-api`.
   - Done when: ambos documentos describen el valor por entorno sin credenciales ni dominios reales
     de producción y coinciden con lo entregado por los patches.
 
-- [ ] **T8. Ejecutar la verificación completa sin clúster**
+- [x] **T8. Ejecutar la verificación completa sin clúster**
   - Cubierta: todos los RF (criterios de finalización)
   - Ejecutar `make verify` (`validate`, `lint`, `policy`, `consistency`) y revisar que el render de
     ambos overlays sigue en verde con la variable nueva.

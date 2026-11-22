@@ -5,7 +5,9 @@ The Hostinger overlay and Terraform code are templates and are not applied autom
 Before deployment:
 
 1. Contract or select a VPS in Brazil and measure latency from Argentina.
-2. Replace `REPLACE_GITHUB_OWNER`, `REPLACE_BASE_DOMAIN` and `REPLACE_EMAIL`.
+2. Replace `REPLACE_GITHUB_OWNER`, `REPLACE_BASE_DOMAIN` and `REPLACE_EMAIL`. The same
+   `REPLACE_BASE_DOMAIN` marker also resolves the Storefront origin that `catalog-api` receives in
+   `BROWSER_ORIGINS` (`catalog-api-env-patch.yaml`), so both stay on the environment's own domain.
 3. Publish multi-architecture application images to GHCR.
 4. Install K3s and cert-manager.
 5. Create encrypted SOPS secrets.

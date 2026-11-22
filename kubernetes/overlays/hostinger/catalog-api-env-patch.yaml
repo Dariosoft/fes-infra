@@ -11,3 +11,5 @@ spec:
           env:
             - name: PUBLIC_API_BASE_URL
               value: https://api.REPLACE_BASE_DOMAIN
+            - name: BROWSER_ORIGINS
+              value: https://market.REPLACE_BASE_DOMAIN
