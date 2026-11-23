@@ -138,9 +138,16 @@ Never commit the real credentials in clear text, and never reuse `minio-root-*` 
   - `S3_BUCKET=product-images`
   - `S3_ACCESS_KEY` ← `secretKeyRef` `app-secrets/product-images-access-key`
   - `S3_SECRET_KEY` ← `secretKeyRef` `app-secrets/product-images-secret-key`
-- `catalog-api` public URL (overlay env patches `catalog-api-env-patch.yaml`):
+- `catalog-api` public URL and browser origin (overlay env patches
+  `patches/catalog-api/env-patch.yaml` and `catalog-api-env-patch.yaml`):
   - `PUBLIC_API_BASE_URL=https://api.friendly-e-shop.duckdns.org` (Minikube)
   - `PUBLIC_API_BASE_URL=https://api.REPLACE_BASE_DOMAIN` (Hostinger)
+  - `BROWSER_ORIGINS=https://market.friendly-e-shop.duckdns.org` (Minikube)
+  - `BROWSER_ORIGINS=https://market.REPLACE_BASE_DOMAIN` (Hostinger)
+
+  `BROWSER_ORIGINS` carries a single Storefront origin (scheme and host, no path or trailing
+  slash). It is public configuration delivered as a literal `value:`, not a Secret: it requires no
+  SOPS entry and no addition to `app-secrets`.
 - `panel-api` (`kubernetes/base/panel-api/deployment.yaml`, ConfigMap `panel-api-config`):
   - `CATALOG_API_BASE_URL=http://catalog-api.apps.svc.cluster.local:8080`
 

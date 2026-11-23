@@ -38,5 +38,4 @@ PY
 )
 
 kubectl --context "$PROFILE" -n apps patch secret app-secrets --type merge -p "$PATCH" >/dev/null
-kubectl --context "$PROFILE" -n apps rollout restart deployment/account-api >/dev/null
-log_info "Loaded Google OAuth client into app-secrets and restarted account-api."
+log_info "Loaded Google OAuth client into app-secrets. account-api picks it up on its next restart."

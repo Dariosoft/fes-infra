@@ -11,3 +11,5 @@ spec:
           env:
             - name: PUBLIC_API_BASE_URL
               value: https://api.friendly-e-shop.duckdns.org
+            - name: BROWSER_ORIGINS
+              value: https://market.friendly-e-shop.duckdns.org
