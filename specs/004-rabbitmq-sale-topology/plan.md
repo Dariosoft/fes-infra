@@ -50,7 +50,12 @@ agotados al quinto fallo es un contrato de los consumidores de `fes-catalog-api`
 - `kubernetes/base/platform/rabbitmq-topology.yaml`: `ConfigMap` con el declarador idempotente y
   `Job` que lo ejecuta.
 - `kubernetes/base/platform/kustomization.yaml`: agregar el recurso anterior.
-- Ajuste de `scripts/deploy/deploy.sh` para esperar a que el Job termine en Minikube.
+- `kubernetes/base/rabbitmq-topology-rbac.yaml`: ServiceAccount en `apps`, Role y RoleBinding de
+  solo lectura sobre Jobs en `platform`.
+- `kubernetes/base/order-api/deployment.yaml` y `kubernetes/base/catalog-api/deployment.yaml`:
+  `initContainers` que esperan a que el Job complete antes de arrancar el contenedor principal.
+- Ajuste de `scripts/deploy/deploy.sh` para aplicar plataforma y topología antes que las apps y
+  esperar a que el Job termine en Minikube.
 - Documentación operativa en `docs/` (topología, TTL, reintento, agotados y contrato de
   consumidores).
 - Verificación con `make validate`, `make policy`, `make consistency`, `make deploy`,
@@ -140,8 +145,9 @@ consumidores lo cumplan (RF-14 a RF-18).
 
 ### `Job` `rabbitmq-topology`
 
-- Namespace `platform`, `backoffLimit` acotado, `ttlSecondsAfterFinished` para que un despliegue
-  posterior pueda recrearlo y `activeDeadlineSeconds` como cota.
+- Namespace `platform`, `backoffLimit` acotado y `activeDeadlineSeconds` como cota. Sin
+  `ttlSecondsAfterFinished`: el Job queda `Completed` para que los `initContainers` de las apps
+  puedan observarlo en cualquier reinicio posterior.
 - Imagen pública fijada `python:3.12.7-alpine` (tag explícito, sin `latest`). El contenedor instala
   `pika==1.3.2` en `/tmp/deps` y ejecuta el script montado; no se construye ni publica una imagen
   nueva.
@@ -164,13 +170,28 @@ consumidores lo cumplan (RF-14 a RF-18).
 
 - `kubernetes/base/platform/kustomization.yaml` agrega `rabbitmq-topology.yaml`; no se duplica en
   los overlays.
-- `scripts/deploy/deploy.sh` espera, después del rollout de `statefulset/rabbitmq`, a que el Job
-  `rabbitmq-topology` complete. Si RabbitMQ tarda en aceptar conexiones, el script del Job
-  reintenta; el Job no se considera exitoso hasta declarar toda la topología.
+- `scripts/deploy/deploy.sh` trabaja en dos fases: primero aplica namespaces, secretos y
+  dependencias de plataforma; espera PostgreSQL y RabbitMQ; borra y reaplica el Job de topología y
+  espera su `Completed`. Recién después aplica el overlay completo con las aplicaciones. Así un
+  despliegue limpio nunca crea pods de apps antes de que existan las colas.
+- En cada deploy el Job se recrea para reparar un broker cuyo volumen se perdió. La declaración es
+  idempotente; no se modifica el broker ni se recrean colas a mano.
 - En Hostinger, el mismo Job queda en el render del overlay; el procedimiento de
-  `docs/hostinger.md` indica verificar su finalización antes de dar por desplegada la topología.
-- Si el volumen del broker se pierde y el Job ya está `Completed`, se borra el Job y se vuelve a
-  aplicar; no se modifica el broker ni se recrean colas a mano.
+  `docs/hostinger.md` indica verificar su finalización antes de cerrar el despliegue.
+
+### Arranque ordenado de las aplicaciones
+
+- `order-api` y `catalog-api` usan el ServiceAccount `rabbitmq-topology-waiter` de `apps`.
+  Un `Role` en `platform` le permite `get/list/watch` sobre Jobs; un `RoleBinding` lo ata a ese
+  ServiceAccount. No se otorgan permisos de escritura ni acceso a otros recursos.
+- Cada deployment tiene dos `initContainers` con `registry.k8s.io/kubectl:v1.37.1`:
+  1. espera que exista `job/rabbitmq-topology` (`--for=create`);
+  2. espera que ese Job esté `Completed` (`--for=condition=complete`).
+- El contenedor principal no arranca hasta que ambos pasos terminan. Si la topología falta o el
+  Job falla, los pods quedan en `Init` en lugar de entrar en `CrashLoopBackOff`; el operador ve el
+  problema en el Job y en los eventos del pod.
+- Este mecanismo cubre también un `kubectl apply` manual del overlay completo en Hostinger, donde
+  el Job y las apps se crean en la misma aplicación.
 
 ## Paridad Minikube / Hostinger
 
@@ -241,6 +262,7 @@ consumidores lo cumplan (RF-14 a RF-18).
 | RF-30 | Sin cambios en `network-policies.yaml`; AMQP por `5672` |
 | RF-31 | Declaración idempotente y Job reaplicable |
 | RF-32 | Sin bindings comodín; routing keys exactas |
+| RF-33 | RBAC de espera, `initContainers` en order-api/catalog-api y dos fases en `deploy.sh` |
 
 ## Criterios de verificación
 
@@ -251,6 +273,10 @@ consumidores lo cumplan (RF-14 a RF-18).
 - No hay exchanges nuevos: los reintentos y los agotados usan el exchange por defecto.
 - `rabbitmq.yaml`, sus probes y `network-policies.yaml` quedan idénticos.
 - No hay secretos, usuarios ni credenciales nuevos.
+- En un clúster limpio, `make deploy` aplica plataforma y Job antes de crear las apps; el Job queda
+  `Completed` antes de que arranquen los contenedores principales.
+- `order-api` y `catalog-api` tienen los dos `initContainers` y su contenedor principal no arranca
+  hasta que el Job complete. El ServiceAccount solo puede leer Jobs en `platform`.
 - `make verify` en verde; `make smoke-test` sigue en verde cuando el clúster local está disponible.
 
 ## Notas

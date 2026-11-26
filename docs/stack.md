@@ -167,9 +167,14 @@ colas de agotados retienen el mensaje 14 días para inspección. La topología d
 demora y el destino; el conteo de intentos y la publicación a la `.dlq` son responsabilidad de
 `fes-order-api` y `fes-catalog-api`.
 
-El `Job` se aplica desde la base y lo heredan ambos overlays; `make deploy` espera a que termine
-antes de continuar. Si el volumen del broker se pierde y el `Job` ya está `Completed`, se borra el
-`Job` y se vuelve a aplicar: la declaración es idempotente y nunca recrea colas a mano.
+El `Job` se aplica desde la base y lo heredan ambos overlays. `make deploy` aplica primero
+namespaces, secretos y dependencias de plataforma, espera a RabbitMQ, recrea el `Job` de topología y
+espera a que quede `Completed`; solo después aplica el overlay completo con las aplicaciones. El
+`Job` se conserva `Completed` (sin TTL) y `order-api`/`catalog-api` usan `initContainers` con el
+ServiceAccount `rabbitmq-topology-waiter` para esperar a que exista y complete antes de arrancar su
+contenedor principal. Si el volumen del broker se pierde, el próximo `make deploy` borra y reaplica
+el `Job`; en Hostinger se hace lo mismo antes de reaplicar el overlay. La declaración es idempotente
+y nunca recrea colas a mano.
 
 ---
 

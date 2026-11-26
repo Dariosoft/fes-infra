@@ -13,9 +13,27 @@ spec:
       labels: {app.kubernetes.io/name: order-api, app.kubernetes.io/part-of: friendly-e-shop}
       annotations: {prometheus.io/scrape: "true", prometheus.io/path: /actuator/prometheus, prometheus.io/port: "8080"}
     spec:
-      automountServiceAccountToken: false
+      serviceAccountName: rabbitmq-topology-waiter
+      automountServiceAccountToken: true
       securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
       terminationGracePeriodSeconds: 30
+      initContainers:
+        - name: wait-for-rabbitmq-topology-job
+          image: registry.k8s.io/kubectl:v1.37.1
+          imagePullPolicy: IfNotPresent
+          command: [kubectl, wait, "--for=create", "--timeout=300s", -n, platform, job/rabbitmq-topology]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 10001}
+        - name: wait-for-rabbitmq-topology
+          image: registry.k8s.io/kubectl:v1.37.1
+          imagePullPolicy: IfNotPresent
+          command: [kubectl, wait, "--for=condition=complete", "--timeout=600s", -n, platform, job/rabbitmq-topology]
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}, readOnlyRootFilesystem: true, runAsNonRoot: true, runAsUser: 10001}
       containers:
         - name: order-api
           image: friendly-e-shop/order-api:dev

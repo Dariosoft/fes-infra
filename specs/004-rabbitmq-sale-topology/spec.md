@@ -61,6 +61,7 @@ La Fase 1 del proceso de venta asíncrono necesita que un pedido recién dado de
 - RF-30: EL SISTEMA conservará sin cambios las políticas de red de la plataforma.
 - RF-31: CUANDO se aplique la topología más de una vez, EL SISTEMA no duplicará exchanges, colas ni enlaces existentes.
 - RF-32: SI un mensaje publicado no coincide con ninguna routing key enlazada, ENTONCES EL SISTEMA no lo entregará a `stock.reserve`, `seller.notify` ni `order.stock-results`.
+- RF-33: CUANDO se despliegue desde cero o se reaplique el overlay, EL SISTEMA no iniciará los contenedores principales de `order-api` ni `catalog-api` hasta que el `Job` `rabbitmq-topology` haya completado.
 
 ## Requisitos no funcionales
 
@@ -69,6 +70,7 @@ La Fase 1 del proceso de venta asíncrono necesita que un pedido recién dado de
 - El retardo de reintento es fijo en 30 segundos y el máximo es 5 intentos por mensaje en `stock.reserve` y en `order.stock-results`.
 - La retención es de 7 días para los mensajes de `seller.notify` y de 14 días para los mensajes de `stock.reserve.dlq` y `order.stock-results.dlq`.
 - La topología debe ser idéntica en Minikube y Hostinger; las diferencias entre entornos se limitan a lo propio de cada entorno y no duplican la definición completa.
+- El `Job` de topología se conserva `Completed` para que los `initContainers` de las aplicaciones puedan comprobar su estado en cualquier reinicio posterior.
 - No se agregan secretos: se usan el usuario `app` y las variables `RABBITMQ_*` que ya existen.
 - El acceso de administración a RabbitMQ sigue siendo interno, como en la plataforma actual.
 - Las políticas de postura del repositorio deben seguir cumpliéndose sobre la topología resultante.
@@ -104,6 +106,7 @@ La Fase 1 del proceso de venta asíncrono necesita que un pedido recién dado de
 ## Criterios de finalización
 
 - En Minikube, la topología queda aplicada y se verifica que los exchanges `orders` y `stock`, las colas `stock.reserve`, `seller.notify` y `order.stock-results`, y sus enlaces existen.
+- En un despliegue limpio, `order-api` y `catalog-api` no entran en `CrashLoopBackOff` por colas ausentes: sus `initContainers` esperan a que el `Job` complete y recién entonces arranca el contenedor principal.
 - Publicar en `order.placed` entrega copia a `stock.reserve` y a `seller.notify`; publicar en `stock.reserved` o `stock.rejected` entrega en `order.stock-results`.
 - Un fallo de consumidor en `stock.reserve` y en `order.stock-results` se reintenta con retardo fijo de 30 segundos, con un máximo de 5 intentos, y al quinto fallo el mensaje queda en `stock.reserve.dlq` u `order.stock-results.dlq` según su origen.
 - Las colas de agotados son durables y retienen sus mensajes 14 días para inspección.
@@ -126,3 +129,4 @@ Ninguna. Las tres dudas originales quedaron aceptadas y resueltas en la sección
   **Respuesta:** `seller.notify` no tiene consumidor en Fase 1 y sus mensajes caducan a los 7 días por TTL de cola. No se descartan antes de esos 7 días solo porque no haya consumidor.
 - ~~¿El destino de mensajes agotados debe ser uno por cola o uno compartido, con qué nombre, y cuánto tiempo se retienen esos mensajes para inspección?~~
   **Respuesta:** uno por cola fuente: `stock.reserve.dlq` y `order.stock-results.dlq`, ambos durables y con retención de 14 días para inspección.
+- **Arranque seguro en un despliegue limpio:** el `Job` se conserva `Completed` y `order-api` y `catalog-api` lo esperan mediante `initContainers` con un ServiceAccount de solo lectura sobre Jobs en `platform`. `make deploy` aplica plataforma y topología antes de las aplicaciones.

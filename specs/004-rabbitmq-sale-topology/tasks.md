@@ -39,7 +39,7 @@ implementan productores ni consumidores.
     `RABBITMQ_PASSWORD` desde `platform-secrets`; `HOME=/tmp`, `PIP_CACHE_DIR=/tmp/pip`,
     `PYTHONPATH=/tmp/deps`, `PYTHONDONTWRITEBYTECODE=1`, `emptyDir` en `/tmp`, `runAsNonRoot`,
     `automountServiceAccountToken: false`, límites/requests, `readinessProbe`, `livenessProbe`,
-    `backoffLimit` y `ttlSecondsAfterFinished`.
+    `backoffLimit` y sin `ttlSecondsAfterFinished` para conservar el Job `Completed`.
   - Done when: `kubeconform -strict` acepta el Job y `make policy` no reporta hallazgos para él en
     ninguno de los dos overlays.
 
@@ -50,13 +50,13 @@ implementan productores ni consumidores.
   - Done when: `kustomize build kubernetes/overlays/minikube` y `kustomize build
     kubernetes/overlays/hostinger` muestran exactamente un `ConfigMap` y un `Job` de topología.
 
-- [ ] **T6. Integrar la espera del Job en el despliegue local**
-  - Cubierta: RF-21, RF-23
-  - En `scripts/deploy/deploy.sh`, después de `wait_rollout platform statefulset/rabbitmq`,
-    esperar a que `job/rabbitmq-topology` complete; si el Job no existe todavía, aplicar primero y
-    luego esperar.
-  - Done when: `make deploy` no termina hasta que la topología está declarada y el Job queda
-    `Completed`.
+- [x] **T6. Integrar la espera del Job en el despliegue local**
+  - Cubierta: RF-21, RF-23, RF-33
+  - En `scripts/deploy/deploy.sh`, aplicar en dos fases: primero namespaces, secretos y plataforma;
+    esperar PostgreSQL y RabbitMQ; borrar y reaplicar `job/rabbitmq-topology`; esperar su
+    `Completed`; recién después aplicar el overlay completo con las apps.
+  - Done when: `make deploy` no crea pods de aplicaciones antes de que la topología esté declarada
+    y el Job queda `Completed` antes del rollout de las apps.
 
 ## Salvaguardas de la entrega
 
@@ -138,9 +138,21 @@ implementan productores ni consumidores.
   - Done when: la documentación refleja los mismos nombres, TTL y routing keys que la spec, sin
     credenciales ni secretos.
 
-- [ ] **T16. Ejecutar la verificación completa**
+- [x] **T16. Esperar la topología desde las aplicaciones consumidoras**
+  - Cubierta: RF-33
+  - Crear `kubernetes/base/rabbitmq-topology-rbac.yaml` con el ServiceAccount
+    `rabbitmq-topology-waiter` en `apps`, un `Role` de `get/list/watch` sobre Jobs en `platform` y
+    su `RoleBinding`. Agregar a `order-api` y `catalog-api` dos `initContainers` con
+    `registry.k8s.io/kubectl:v1.37.1`: uno espera a que el Job exista y otro a que esté
+    `Completed`. Registrar el RBAC en `kubernetes/base/kustomization.yaml`.
+  - Done when: en un despliegue limpio los pods de `order-api` y `catalog-api` permanecen en `Init`
+    hasta que el Job completa, y después arrancan sin `CrashLoopBackOff` por colas ausentes.
+
+- [ ] **T17. Ejecutar la verificación completa**
   - Cubierta: todos los RF (criterios de finalización)
   - Ejecutar `make verify` y, con clúster local, `make deploy` y `make smoke-test`; repetir la
-    comprobación de la topología en Minikube y revisar el estado final del Job.
-  - Done when: `make verify` y `make smoke-test` terminan sin errores, el Job queda `Completed` y
-    no hay secretos, estados ni material sensible agregado al repositorio.
+    comprobación de la topología en Minikube, revisar el estado final del Job y confirmar que las
+    apps esperan la topología.
+  - Done when: `make verify` y `make smoke-test` terminan sin errores, el Job queda `Completed`,
+    los `initContainers` de las apps completan y no hay secretos, estados ni material sensible
+    agregado al repositorio.

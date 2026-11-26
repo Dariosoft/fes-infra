@@ -46,6 +46,9 @@ after `make deploy`:
 ```bash
 kubectl -n platform wait --for=condition=complete --timeout=300s job/rabbitmq-topology
 kubectl -n platform logs job/rabbitmq-topology
+kubectl -n apps get deploy order-api catalog-api -o jsonpath='{range .items[*]}{.metadata.name}{" init="}{.spec.template.spec.initContainers[*].name}{"\n"}{end}'
+kubectl -n platform get role,rolebinding rabbitmq-topology-waiter
+kubectl -n apps get pods -l 'app.kubernetes.io/name in (order-api,catalog-api)' -o wide
 kubectl -n platform port-forward service/rabbitmq 15672:15672 &
 RMQ_PASSWORD=$(kubectl -n platform get secret platform-secrets -o jsonpath='{.data.rabbitmq-password}' | base64 -d)
 curl -s -u "app:${RMQ_PASSWORD}" http://127.0.0.1:15672/api/exchanges/friendly | jq -r '.[].name'
@@ -96,3 +99,8 @@ unset RMQ_PASSWORD
 
 Deleting a `Completed` `rabbitmq-topology` `Job` and applying the overlay again must leave the same
 exchanges, queues and bindings without duplicates or `PRECONDITION_FAILED`.
+
+On a clean cluster, `make deploy` must apply the platform and the topology Job before creating the
+application pods. During that window `order-api` and `catalog-api` remain in `Init` with
+`wait-for-rabbitmq-topology-job` / `wait-for-rabbitmq-topology`; once the Job is `Completed`, both
+main containers start and the queues show a consumer.
