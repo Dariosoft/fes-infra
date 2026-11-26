@@ -14,5 +14,9 @@ Before deployment:
 6. Point DNS records at the VPS IPv4 address.
 7. Render and inspect `kustomize build kubernetes/overlays/hostinger`.
 8. Apply the overlay and verify every rollout.
+9. Wait for the `rabbitmq-topology` Job in `platform` to reach `Completed` before closing the
+   deployment; it declares the same RabbitMQ exchanges, queues, TTLs and bindings as Minikube
+   (`kubectl -n platform wait --for=condition=complete --timeout=300s job/rabbitmq-topology`). If the
+   broker volume is lost while the `Job` is `Completed`, delete the `Job` and reapply the overlay.
 
 Terraform is disabled by default because applying an enabled Hostinger VPS resource can purchase a subscription, while destroying it can cancel that subscription. Review the provider behavior and plan output before changing `enable_vps_provisioning`.

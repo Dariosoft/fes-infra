@@ -127,6 +127,49 @@ La conversación eligió **RabbitMQ desde el primer flujo asíncrono** y dejó K
 | **AMQP 0-9-1** | puerto `5672` | Protocolo de colas usado por Spring AMQP | [AMQP 0-9-1](https://www.rabbitmq.com/docs/amqp) |
 | **RabbitMQ Management Plugin** | incluido en el tag `-management` | Consola HTTP interna (port-forward, no Ingress) | [Management](https://www.rabbitmq.com/docs/management) |
 | **`rabbitmq-diagnostics`** | CLI de la imagen | Probes `ping` / `check_running` del StatefulSet | [rabbitmq-diagnostics](https://www.rabbitmq.com/docs/cli) |
+| **pika** | `1.3.2` | Cliente AMQP del `Job` que declara exchanges, colas y enlaces | [pika](https://pika.readthedocs.io/) |
+
+### Topología de la venta asíncrona (Fase 1)
+
+`kubernetes/base/platform/rabbitmq-topology.yaml` declara la topología con un `ConfigMap`
+(`topology.py`, ejecutado por un `Job` idempotente). El `Job` habla AMQP `0-9-1` por el puerto
+`5672` contra el broker existente, reutiliza el usuario `app`, el vhost `friendly` y la clave
+`rabbitmq-password` de `platform-secrets`; no crea secretos, usuarios ni exchanges nuevos. Las
+colas de reintento y de agotados usan el exchange por defecto (`""`), que enruta por nombre de
+cola, de modo que `orders` y `stock` conservan solo su contrato de dominio.
+
+| Exchange | Tipo | Durable | Routing keys |
+|---|---|---|---|
+| `orders` | `topic` | sí | `order.placed` |
+| `stock` | `topic` | sí | `stock.reserved`, `stock.rejected` |
+
+| Cola | Durable | Argumentos | Enlaces |
+|---|---|---|---|
+| `stock.reserve` | sí | DLX `""` → `stock.reserve.retry` | `orders`/`order.placed` |
+| `seller.notify` | sí | `x-message-ttl: 604800000` (7 días) | `orders`/`order.placed` |
+| `order.stock-results` | sí | DLX `""` → `order.stock-results.retry` | `stock`/`stock.reserved` y `stock`/`stock.rejected` |
+| `stock.reserve.retry` | sí | `x-message-ttl: 30000` (30 s); DLX `""` → `stock.reserve` | — |
+| `stock.reserve.dlq` | sí | `x-message-ttl: 1209600000` (14 días) | — |
+| `order.stock-results.retry` | sí | `x-message-ttl: 30000` (30 s); DLX `""` → `order.stock-results` | — |
+| `order.stock-results.dlq` | sí | `x-message-ttl: 1209600000` (14 días) | — |
+
+Los TTL se expresan en milisegundos, la unidad de `x-message-ttl`: `30000`, `604800000` y
+`1209600000`. `seller.notify` no tiene consumidor en Fase 1: retiene sus mensajes y los descarta por
+TTL al cumplirse 7 días, no por falta de consumidor.
+
+**Reintento y agotados (contrato de los consumidores).** Un consumidor que falla hace
+`basic_nack`/`reject` con `requeue=false`; la cola principal lo envía por su DLX al exchange por
+defecto con routing key `<cola>.retry`. La cola de reintento lo retiene 30 segundos y, al expirar,
+lo devuelve a la cola principal. RabbitMQ acumula la traza en `x-death`; el consumidor cuenta las
+entradas de la cola `.retry`, y al quinto fallo publica el mensaje en la `.dlq` correspondiente
+(`stock.reserve.dlq` u `order.stock-results.dlq`) por el exchange por defecto y hace ACK. Las
+colas de agotados retienen el mensaje 14 días para inspección. La topología declara la ruta, la
+demora y el destino; el conteo de intentos y la publicación a la `.dlq` son responsabilidad de
+`fes-order-api` y `fes-catalog-api`.
+
+El `Job` se aplica desde la base y lo heredan ambos overlays; `make deploy` espera a que termine
+antes de continuar. Si el volumen del broker se pierde y el `Job` ya está `Completed`, se borra el
+`Job` y se vuelve a aplicar: la declaración es idempotente y nunca recrea colas a mano.
 
 ---
 

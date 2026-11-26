@@ -60,6 +60,12 @@ fi
 
 wait_rollout platform statefulset/postgresql 300s
 wait_rollout platform statefulset/rabbitmq 300s
+if ! k -n platform get job/rabbitmq-topology >/dev/null 2>&1; then
+  log_info "Applying RabbitMQ topology Job"
+  k apply -f "$INFRA_ROOT/kubernetes/base/platform/rabbitmq-topology.yaml"
+fi
+log_info "Waiting for the RabbitMQ topology declaration"
+k -n platform wait --for=condition=complete --timeout=300s job/rabbitmq-topology
 wait_rollout platform statefulset/minio 300s
 "$INFRA_ROOT/scripts/storage/ensure-bucket.sh"
 if [ -d "$WORKSPACE/media/images" ]; then

@@ -1,0 +1,243 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rabbitmq-topology
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: rabbitmq-topology
+    app.kubernetes.io/part-of: friendly-e-shop
+data:
+  topology.py: |
+    """Declare the Phase 1 RabbitMQ sale topology through AMQP 0-9-1.
+
+    The declaration is idempotent: declaring the same exchanges, queues,
+    arguments and bindings again returns the existing resources. If an
+    existing queue has different arguments, RabbitMQ answers
+    PRECONDITION_FAILED and the Job fails visibly instead of recreating it.
+    """
+
+    import os
+    import time
+
+    import pika
+
+    HOST = os.environ.get("RABBITMQ_HOST", "rabbitmq.platform.svc.cluster.local")
+    PORT = int(os.environ.get("RABBITMQ_PORT", "5672"))
+    VHOST = os.environ.get("RABBITMQ_VHOST", "friendly")
+    USERNAME = os.environ.get("RABBITMQ_USERNAME", "app")
+    PASSWORD = os.environ["RABBITMQ_PASSWORD"]
+
+    DEFAULT_EXCHANGE = ""
+
+    EXCHANGES = (
+        ("orders", "topic"),
+        ("stock", "topic"),
+    )
+
+    QUEUES = (
+        (
+            "stock.reserve",
+            {
+                "x-dead-letter-exchange": DEFAULT_EXCHANGE,
+                "x-dead-letter-routing-key": "stock.reserve.retry",
+            },
+        ),
+        (
+            "seller.notify",
+            {"x-message-ttl": 604800000},
+        ),
+        (
+            "order.stock-results",
+            {
+                "x-dead-letter-exchange": DEFAULT_EXCHANGE,
+                "x-dead-letter-routing-key": "order.stock-results.retry",
+            },
+        ),
+        (
+            "stock.reserve.retry",
+            {
+                "x-message-ttl": 30000,
+                "x-dead-letter-exchange": DEFAULT_EXCHANGE,
+                "x-dead-letter-routing-key": "stock.reserve",
+            },
+        ),
+        (
+            "stock.reserve.dlq",
+            {"x-message-ttl": 1209600000},
+        ),
+        (
+            "order.stock-results.retry",
+            {
+                "x-message-ttl": 30000,
+                "x-dead-letter-exchange": DEFAULT_EXCHANGE,
+                "x-dead-letter-routing-key": "order.stock-results",
+            },
+        ),
+        (
+            "order.stock-results.dlq",
+            {"x-message-ttl": 1209600000},
+        ),
+    )
+
+    BINDINGS = (
+        ("stock.reserve", "orders", "order.placed"),
+        ("seller.notify", "orders", "order.placed"),
+        ("order.stock-results", "stock", "stock.reserved"),
+        ("order.stock-results", "stock", "stock.rejected"),
+    )
+
+
+    def connect():
+        parameters = pika.ConnectionParameters(
+            host=HOST,
+            port=PORT,
+            virtual_host=VHOST,
+            credentials=pika.PlainCredentials(USERNAME, PASSWORD),
+            heartbeat=30,
+            blocked_connection_timeout=30,
+            socket_timeout=10,
+            connection_attempts=1,
+        )
+        attempts = 60
+        for attempt in range(1, attempts + 1):
+            try:
+                return pika.BlockingConnection(parameters)
+            except pika.exceptions.AMQPConnectionError as error:
+                print(
+                    "waiting for rabbitmq (%d/%d): %s" % (attempt, attempts, error),
+                    flush=True,
+                )
+                time.sleep(2)
+        raise SystemExit("rabbitmq was not reachable after %d attempts" % attempts)
+
+
+    def main():
+        connection = connect()
+        try:
+            channel = connection.channel()
+
+            for name, exchange_type in EXCHANGES:
+                channel.exchange_declare(
+                    exchange=name,
+                    exchange_type=exchange_type,
+                    durable=True,
+                )
+                print("declared exchange %s (%s)" % (name, exchange_type), flush=True)
+
+            for name, arguments in QUEUES:
+                channel.queue_declare(queue=name, durable=True, arguments=arguments)
+                print("declared queue %s" % name, flush=True)
+
+            for queue, exchange, routing_key in BINDINGS:
+                channel.queue_bind(
+                    queue=queue,
+                    exchange=exchange,
+                    routing_key=routing_key,
+                )
+                print(
+                    "bound %s to %s/%s" % (queue, exchange, routing_key),
+                    flush=True,
+                )
+        finally:
+            connection.close()
+
+
+    if __name__ == "__main__":
+        main()
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rabbitmq-topology
+  namespace: platform
+  labels:
+    app.kubernetes.io/name: rabbitmq-topology
+    app.kubernetes.io/part-of: friendly-e-shop
+spec:
+  backoffLimit: 6
+  activeDeadlineSeconds: 600
+  ttlSecondsAfterFinished: 3600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rabbitmq-topology
+        app.kubernetes.io/part-of: friendly-e-shop
+    spec:
+      automountServiceAccountToken: false
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: topology
+          image: python:3.12.7-alpine
+          imagePullPolicy: IfNotPresent
+          command: ["sh", "-c"]
+          args:
+            - pip install --no-cache-dir --disable-pip-version-check --target /tmp/deps pika==1.3.2 && exec python /opt/rabbitmq/topology.py
+          env:
+            - name: RABBITMQ_HOST
+              value: rabbitmq.platform.svc.cluster.local
+            - name: RABBITMQ_PORT
+              value: "5672"
+            - name: RABBITMQ_VHOST
+              value: friendly
+            - name: RABBITMQ_USERNAME
+              value: app
+            - name: RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: platform-secrets
+                  key: rabbitmq-password
+            - name: HOME
+              value: /tmp
+            - name: PIP_CACHE_DIR
+              value: /tmp/pip
+            - name: PYTHONPATH
+              value: /tmp/deps
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          readinessProbe:
+            exec:
+              command: ["true"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            exec:
+              command: ["true"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            timeoutSeconds: 5
+          volumeMounts:
+            - name: topology
+              mountPath: /opt/rabbitmq
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: topology
+          configMap:
+            name: rabbitmq-topology
+            defaultMode: 0444
+            items:
+              - key: topology.py
+                path: topology.py
+        - name: tmp
+          emptyDir: {}
