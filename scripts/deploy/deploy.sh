@@ -37,6 +37,26 @@ if ! minikube --profile "$PROFILE" image ls | grep -F "$minio_image" >/dev/null;
 fi
 
 "$INFRA_ROOT/scripts/cluster/tls.sh"
+# Phase 1: namespaces, secrets and platform dependencies. No application is
+# created yet, so nothing can start before RabbitMQ and its topology exist.
+k apply -f "$INFRA_ROOT/kubernetes/base/namespaces.yaml"
+k apply -f "$INFRA_ROOT/kubernetes/overlays/minikube/resources/secrets.yaml"
+k apply -f "$INFRA_ROOT/kubernetes/base/platform/postgresql.yaml" \
+  -f "$INFRA_ROOT/kubernetes/base/platform/rabbitmq.yaml" \
+  -f "$INFRA_ROOT/kubernetes/base/platform/minio.yaml" \
+  -f "$INFRA_ROOT/kubernetes/base/platform/network-policies.yaml"
+wait_rollout platform statefulset/postgresql 300s
+wait_rollout platform statefulset/rabbitmq 300s
+
+# Recreate the topology Job on every deploy. It is idempotent and repairs a
+# broker whose volume was lost. The Completed Job remains available for the
+# order-api and catalog-api initContainers.
+k -n platform delete job/rabbitmq-topology --ignore-not-found
+k apply -f "$INFRA_ROOT/kubernetes/base/platform/rabbitmq-topology.yaml"
+log_info "Waiting for the RabbitMQ topology declaration"
+k -n platform wait --for=condition=complete --timeout=300s job/rabbitmq-topology
+
+# Phase 2: applications, ingress, observability and the rest of the overlay.
 kustomize build --load-restrictor LoadRestrictionsNone "$INFRA_ROOT/kubernetes/overlays/minikube" \
   | kubectl --context "$PROFILE" apply -f -
 "$INFRA_ROOT/scripts/secrets/load-google-oauth.sh"
@@ -58,8 +78,6 @@ if [ "$minio_built" = 1 ]; then
   kubectl --context "$PROFILE" -n platform rollout restart statefulset/minio
 fi
 
-wait_rollout platform statefulset/postgresql 300s
-wait_rollout platform statefulset/rabbitmq 300s
 wait_rollout platform statefulset/minio 300s
 "$INFRA_ROOT/scripts/storage/ensure-bucket.sh"
 if [ -d "$WORKSPACE/media/images" ]; then

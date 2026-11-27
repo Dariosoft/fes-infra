@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - postgresql.yaml
   - rabbitmq.yaml
+  - rabbitmq-topology.yaml
   - minio.yaml
   - network-policies.yaml

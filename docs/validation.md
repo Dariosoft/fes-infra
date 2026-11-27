@@ -27,3 +27,80 @@ Re-validated on 2026-09-19 after standardizing all application names with the `{
 - PostgreSQL backups for `accounts`, `catalog`, `orders`, `payments` and `panel` are written to MinIO; `catalog-20260919T172402Z.dump` restored successfully and `/catalog` stayed Ready.
 - OpenTelemetry Collector accepts spans and logs and exports them to Tempo and Loki using `account-api`, `catalog-api`, `order-api`, `payment-api` and `panel-api` as service names.
 - Prometheus, Loki and Tempo health endpoints returned Ready.
+
+## RabbitMQ sale topology (spec 004)
+
+The static checks do not need a cluster:
+
+```bash
+kustomize build kubernetes/overlays/minikube | grep -c 'name: rabbitmq-topology'
+kustomize build kubernetes/overlays/hostinger | grep -c 'name: rabbitmq-topology'
+make validate
+make policy
+make consistency
+```
+
+Both renders must show exactly one `ConfigMap` and one `Job` named `rabbitmq-topology`. In Minikube,
+after `make deploy`:
+
+```bash
+kubectl -n platform wait --for=condition=complete --timeout=300s job/rabbitmq-topology
+kubectl -n platform logs job/rabbitmq-topology
+kubectl -n apps get deploy order-api catalog-api -o jsonpath='{range .items[*]}{.metadata.name}{" init="}{.spec.template.spec.initContainers[*].name}{"\n"}{end}'
+kubectl -n platform get role,rolebinding rabbitmq-topology-waiter
+kubectl -n apps get pods -l 'app.kubernetes.io/name in (order-api,catalog-api)' -o wide
+kubectl -n platform port-forward service/rabbitmq 15672:15672 &
+RMQ_PASSWORD=$(kubectl -n platform get secret platform-secrets -o jsonpath='{.data.rabbitmq-password}' | base64 -d)
+curl -s -u "app:${RMQ_PASSWORD}" http://127.0.0.1:15672/api/exchanges/friendly | jq -r '.[].name'
+curl -s -u "app:${RMQ_PASSWORD}" http://127.0.0.1:15672/api/queues/friendly | jq -r '.[] | [.name, .durable, .arguments] | @json'
+curl -s -u "app:${RMQ_PASSWORD}" http://127.0.0.1:15672/api/bindings/friendly | jq -r '.[] | select(.source != "") | [.source, .routing_key, .destination] | @json'
+```
+
+Expect the exchanges `orders` and `stock` (topic, durable), the seven queues with the arguments in
+`docs/stack.md`, and the four bindings `orders/order.placed → stock.reserve`, `orders/order.placed →
+seller.notify`, `stock/stock.reserved → order.stock-results` and `stock/stock.rejected →
+order.stock-results`.
+
+Publish fan-out and an unbound routing key through the management API:
+
+```bash
+publish() { curl -s -u "app:${RMQ_PASSWORD}" -H 'content-type: application/json' \
+  -d "{\"properties\":{},\"routing_key\":\"$2\",\"payload\":\"test\",\"payload_encoding\":\"string\"}" \
+  "http://127.0.0.1:15672/api/exchanges/friendly/$1/publish"; }
+publish orders order.placed
+publish stock stock.reserved
+publish stock stock.rejected
+publish orders order.unbound
+curl -s -u "app:${RMQ_PASSWORD}" http://127.0.0.1:15672/api/queues/friendly | jq -r '.[] | [.name, .messages] | @tsv'
+```
+
+`stock.reserve` and `seller.notify` receive the `order.placed` copy; `order.stock-results` receives
+both stock results; `order.unbound` reaches none of them. To exercise the retry path, reject one
+message and confirm it is not redelivered before 30 seconds:
+
+```bash
+curl -s -u "app:${RMQ_PASSWORD}" -H 'content-type: application/json' \
+  -d '{"count":1,"ackmode":"reject_requeue_false","encoding":"auto"}' \
+  http://127.0.0.1:15672/api/queues/friendly/stock.reserve/get
+curl -s -u "app:${RMQ_PASSWORD}" http://127.0.0.1:15672/api/queues/friendly/stock.reserve.retry | jq .messages
+sleep 30
+curl -s -u "app:${RMQ_PASSWORD}" http://127.0.0.1:15672/api/queues/friendly/stock.reserve | jq .messages
+```
+
+After the fifth rejected attempt the consumer contract publishes to `stock.reserve.dlq` or
+`order.stock-results.dlq`; those queues declare `x-message-ttl` of `1209600000`. Finally, restart
+the broker with messages queued and confirm the durable queues and unexpired messages survive:
+
+```bash
+kubectl -n platform rollout restart statefulset/rabbitmq
+kubectl -n platform rollout status statefulset/rabbitmq --timeout=300s
+unset RMQ_PASSWORD
+```
+
+Deleting a `Completed` `rabbitmq-topology` `Job` and applying the overlay again must leave the same
+exchanges, queues and bindings without duplicates or `PRECONDITION_FAILED`.
+
+On a clean cluster, `make deploy` must apply the platform and the topology Job before creating the
+application pods. During that window `order-api` and `catalog-api` remain in `Init` with
+`wait-for-rabbitmq-topology-job` / `wait-for-rabbitmq-topology`; once the Job is `Completed`, both
+main containers start and the queues show a consumer.
