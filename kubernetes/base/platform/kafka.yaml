@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Service
+metadata: {name: kafka, namespace: platform, labels: {app.kubernetes.io/name: kafka}}
+spec:
+  selector: {app.kubernetes.io/name: kafka}
+  ports: [{name: plaintext, port: 9092, targetPort: plaintext}]
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: kafka, namespace: platform, labels: {app.kubernetes.io/name: kafka}}
+spec:
+  serviceName: kafka
+  replicas: 1
+  selector: {matchLabels: {app.kubernetes.io/name: kafka}}
+  template:
+    metadata: {labels: {app.kubernetes.io/name: kafka, app.kubernetes.io/part-of: friendly-e-shop}}
+    spec:
+      automountServiceAccountToken: false
+      securityContext: {runAsNonRoot: true, runAsUser: 1000, runAsGroup: 1000, fsGroup: 1000, seccompProfile: {type: RuntimeDefault}}
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: kafka
+          image: apache/kafka:4.1.0
+          ports:
+            - {name: plaintext, containerPort: 9092}
+            - {name: controller, containerPort: 9093}
+          env:
+            - {name: KAFKA_NODE_ID, value: "1"}
+            - {name: KAFKA_PROCESS_ROLES, value: "broker,controller"}
+            - {name: KAFKA_CONTROLLER_QUORUM_VOTERS, value: "1@127.0.0.1:9093"}
+            - {name: KAFKA_LISTENERS, value: "PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093"}
+            - {name: KAFKA_ADVERTISED_LISTENERS, value: "PLAINTEXT://kafka.platform.svc.cluster.local:9092"}
+            - {name: KAFKA_CONTROLLER_LISTENER_NAMES, value: "CONTROLLER"}
+            - {name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP, value: "CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT"}
+            - {name: KAFKA_INTER_BROKER_LISTENER_NAME, value: "PLAINTEXT"}
+            - {name: KAFKA_LOG_DIRS, value: "/var/lib/kafka/data"}
+            - {name: KAFKA_AUTO_CREATE_TOPICS_ENABLE, value: "false"}
+            - {name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR, value: "1"}
+            - {name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR, value: "1"}
+            - {name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR, value: "1"}
+            - {name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS, value: "0"}
+            - {name: KAFKA_HEAP_OPTS, value: "-Xms512m -Xmx512m"}
+            - {name: CLUSTER_ID, value: "4L6g3nShT-eMCtK--X86sw"}
+            - {name: KAFKA_CONFIG, value: "/tmp/kafka/server.properties"}
+            - {name: HOME, value: "/tmp"}
+          startupProbe: {tcpSocket: {port: plaintext}, failureThreshold: 30, periodSeconds: 5}
+          readinessProbe: {tcpSocket: {port: plaintext}, periodSeconds: 10}
+          livenessProbe: {tcpSocket: {port: plaintext}, periodSeconds: 20, failureThreshold: 6}
+          resources:
+            requests: {cpu: 200m, memory: 768Mi}
+            limits: {cpu: "1", memory: 1536Mi}
+          securityContext: {allowPrivilegeEscalation: false, capabilities: {drop: [ALL]}}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/kafka/data}
+            - {name: config, mountPath: /opt/kafka/config}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - {name: config, emptyDir: {}}
+        - {name: tmp, emptyDir: {}}
+  volumeClaimTemplates:
+    - metadata: {name: data}
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources: {requests: {storage: 10Gi}}

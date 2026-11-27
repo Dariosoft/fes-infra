@@ -10,17 +10,23 @@ data:
       --set=catalog_password="$CATALOG_DB_PASSWORD" \
       --set=orders_password="$ORDERS_DB_PASSWORD" \
       --set=payments_password="$PAYMENTS_DB_PASSWORD" \
-      --set=panel_password="$PANEL_DB_PASSWORD" <<'SQL'
+      --set=panel_password="$PANEL_DB_PASSWORD" \
+      --set=analytics_password="$ANALYTICS_DB_PASSWORD" \
+      --set=notifications_password="$NOTIFICATIONS_DB_PASSWORD" <<'SQL'
     CREATE USER accounts PASSWORD :'accounts_password';
     CREATE USER catalog PASSWORD :'catalog_password';
     CREATE USER orders PASSWORD :'orders_password';
     CREATE USER payments PASSWORD :'payments_password';
     CREATE USER panel PASSWORD :'panel_password';
+    CREATE USER analytics PASSWORD :'analytics_password';
+    CREATE USER notifications PASSWORD :'notifications_password';
     CREATE DATABASE accounts OWNER accounts;
     CREATE DATABASE catalog OWNER catalog;
     CREATE DATABASE orders OWNER orders;
     CREATE DATABASE payments OWNER payments;
     CREATE DATABASE panel OWNER panel;
+    CREATE DATABASE analytics OWNER analytics;
+    CREATE DATABASE notifications OWNER notifications;
     SQL
 ---
 apiVersion: v1
@@ -57,6 +63,8 @@ spec:
             - {name: ORDERS_DB_PASSWORD, valueFrom: {secretKeyRef: {name: platform-secrets, key: orders-db-password}}}
             - {name: PAYMENTS_DB_PASSWORD, valueFrom: {secretKeyRef: {name: platform-secrets, key: payments-db-password}}}
             - {name: PANEL_DB_PASSWORD, valueFrom: {secretKeyRef: {name: platform-secrets, key: panel-db-password}}}
+            - {name: ANALYTICS_DB_PASSWORD, valueFrom: {secretKeyRef: {name: platform-secrets, key: analytics-db-password}}}
+            - {name: NOTIFICATIONS_DB_PASSWORD, valueFrom: {secretKeyRef: {name: platform-secrets, key: notifications-db-password}}}
             - {name: PGDATA, value: /var/lib/postgresql/18/docker}
           startupProbe: {exec: {command: [pg_isready, -U, postgres]}, failureThreshold: 30, periodSeconds: 5}
           readinessProbe: {exec: {command: [pg_isready, -U, postgres]}, periodSeconds: 10}

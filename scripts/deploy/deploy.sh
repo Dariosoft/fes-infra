@@ -3,7 +3,7 @@
 . "$(dirname "$0")/../lib/kube.sh"
 
 MOUNT_LOG=/tmp/friendly-e-shop-minikube-mount.log
-services=(panel-web client-web panel-api account-api catalog-api order-api payment-api)
+services=(panel-web client-web panel-api account-api catalog-api order-api payment-api analytics-api notifications-api)
 
 if [ "$(minikube --profile "$PROFILE" status --format '{{.Host}}')" != "Running" ]; then
   log_error "Minikube profile '$PROFILE' is not running. Run make minikube-create first."
@@ -43,10 +43,12 @@ k apply -f "$INFRA_ROOT/kubernetes/base/namespaces.yaml"
 k apply -f "$INFRA_ROOT/kubernetes/overlays/minikube/resources/secrets.yaml"
 k apply -f "$INFRA_ROOT/kubernetes/base/platform/postgresql.yaml" \
   -f "$INFRA_ROOT/kubernetes/base/platform/rabbitmq.yaml" \
+  -f "$INFRA_ROOT/kubernetes/base/platform/kafka.yaml" \
   -f "$INFRA_ROOT/kubernetes/base/platform/minio.yaml" \
   -f "$INFRA_ROOT/kubernetes/base/platform/network-policies.yaml"
 wait_rollout platform statefulset/postgresql 300s
 wait_rollout platform statefulset/rabbitmq 300s
+wait_rollout platform statefulset/kafka 300s
 
 # Recreate the topology Job on every deploy. It is idempotent and repairs a
 # broker whose volume was lost. The Completed Job remains available for the
@@ -55,6 +57,12 @@ k -n platform delete job/rabbitmq-topology --ignore-not-found
 k apply -f "$INFRA_ROOT/kubernetes/base/platform/rabbitmq-topology.yaml"
 log_info "Waiting for the RabbitMQ topology declaration"
 k -n platform wait --for=condition=complete --timeout=300s job/rabbitmq-topology
+
+# Declare the Kafka topic after the broker is ready and before the apps start.
+k -n platform delete job/kafka-topology --ignore-not-found
+k apply -f "$INFRA_ROOT/kubernetes/base/platform/kafka-topology.yaml"
+log_info "Waiting for the Kafka topology declaration"
+k -n platform wait --for=condition=complete --timeout=300s job/kafka-topology
 
 # Phase 2: applications, ingress, observability and the rest of the overlay.
 kustomize build --load-restrictor LoadRestrictionsNone "$INFRA_ROOT/kubernetes/overlays/minikube" \
@@ -89,7 +97,7 @@ wait_rollout observability deployment/loki 300s
 wait_rollout observability deployment/tempo 300s
 wait_rollout observability deployment/grafana 300s
 for service in "${services[@]}"; do
-  wait_rollout apps "deployment/${service}" 600s
+  wait_rollout apps "deployment/${service}" 900s
 done
 
 log_info "Minikube is serving the mounted checkouts."
