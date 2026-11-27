@@ -22,5 +22,10 @@ Before deployment:
    Job is kept after completion so the application `initContainers` can observe it on later pod
    restarts. If the broker volume is lost while the `Job` is `Completed`, delete the `Job` and
    reapply the overlay.
+10. Wait for the `kafka-topology` Job in `platform` to reach `Completed` before closing the
+    deployment; it declares the `orders.events` topic consumed by `analytics-api` and
+    `notifications-api` (`kubectl -n platform wait --for=condition=complete --timeout=300s
+    job/kafka-topology`). The Job is kept after completion for the application `initContainers`.
+    If the Kafka volume is lost, delete the Job and reapply the overlay.
 
 Terraform is disabled by default because applying an enabled Hostinger VPS resource can purchase a subscription, while destroying it can cancel that subscription. Review the provider behavior and plan output before changing `enable_vps_provisioning`.

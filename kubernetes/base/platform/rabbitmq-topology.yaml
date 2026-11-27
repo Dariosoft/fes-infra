@@ -47,6 +47,18 @@ data:
             {"x-message-ttl": 604800000},
         ),
         (
+            "seller.notify.retry",
+            {
+                "x-message-ttl": 30000,
+                "x-dead-letter-exchange": DEFAULT_EXCHANGE,
+                "x-dead-letter-routing-key": "seller.notify",
+            },
+        ),
+        (
+            "seller.notify.dlq",
+            {"x-message-ttl": 1209600000},
+        ),
+        (
             "order.stock-results",
             {
                 "x-dead-letter-exchange": DEFAULT_EXCHANGE,

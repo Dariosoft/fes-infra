@@ -119,7 +119,9 @@ El script de init de PostgreSQL (`01-create-databases.sh`) crea usuarios y bases
 
 ## Mensajería
 
-La conversación eligió **RabbitMQ desde el primer flujo asíncrono** y dejó Kafka para una etapa posterior. Las APIs Java ya tienen cliente y configuración; todavía no publican ni consumen mensajes.
+La conversación eligió **RabbitMQ desde el primer flujo asíncrono** y sumó **Kafka** en la Fase 2
+como log durable de eventos de dominio. RabbitMQ transporta comandos y la notificación out-of-band;
+Kafka alimenta proyecciones, el feed en vivo y la analítica.
 
 | Tecnología | Versión | Función en este proyecto | Documentación |
 |---|---|---|---|
@@ -147,6 +149,8 @@ cola, de modo que `orders` y `stock` conservan solo su contrato de dominio.
 |---|---|---|---|
 | `stock.reserve` | sí | DLX `""` → `stock.reserve.retry` | `orders`/`order.placed` |
 | `seller.notify` | sí | `x-message-ttl: 604800000` (7 días) | `orders`/`order.placed` |
+| `seller.notify.retry` | sí | `x-message-ttl: 30000` (30 s); DLX `""` → `seller.notify` | — |
+| `seller.notify.dlq` | sí | `x-message-ttl: 1209600000` (14 días) | — |
 | `order.stock-results` | sí | DLX `""` → `order.stock-results.retry` | `stock`/`stock.reserved` y `stock`/`stock.rejected` |
 | `stock.reserve.retry` | sí | `x-message-ttl: 30000` (30 s); DLX `""` → `stock.reserve` | — |
 | `stock.reserve.dlq` | sí | `x-message-ttl: 1209600000` (14 días) | — |
@@ -155,7 +159,10 @@ cola, de modo que `orders` y `stock` conservan solo su contrato de dominio.
 
 Los TTL se expresan en milisegundos, la unidad de `x-message-ttl`: `30000`, `604800000` y
 `1209600000`. `seller.notify` no tiene consumidor en Fase 1: retiene sus mensajes y los descarta por
-TTL al cumplirse 7 días, no por falta de consumidor.
+TTL al cumplirse 7 días, no por falta de consumidor. En Fase 2 lo consume `notifications-api`;
+el consumidor republica en `seller.notify.retry` (30 s) ante un fallo, cuenta los ciclos por
+`x-death` y al quinto intento mueve el mensaje a `seller.notify.dlq` (14 días). Los argumentos de
+`seller.notify` no cambian para no recrear la cola existente.
 
 **Reintento y agotados (contrato de los consumidores).** Un consumidor que falla hace
 `basic_nack`/`reject` con `requeue=false`; la cola principal lo envía por su DLX al exchange por
@@ -175,6 +182,37 @@ ServiceAccount `rabbitmq-topology-waiter` para esperar a que exista y complete a
 contenedor principal. Si el volumen del broker se pierde, el próximo `make deploy` borra y reaplica
 el `Job`; en Hostinger se hace lo mismo antes de reaplicar el overlay. La declaración es idempotente
 y nunca recrea colas a mano.
+
+### Kafka y eventos de dominio (Fase 2)
+
+`kubernetes/base/platform/kafka.yaml` despliega un broker único en modo KRaft (sin Zookeeper) con
+volumen persistente y Service `kafka.platform.svc.cluster.local:9092`. El listener interno es
+`PLAINTEXT` y solo es alcanzable desde `apps` y `platform` por la NetworkPolicy.
+
+`kubernetes/base/platform/kafka-topology.yaml` ejecuta un `Job` idempotente que espera al broker y
+declara el topic `orders.events` con 3 particiones, factor de replicación 1 y retención de 7 días.
+
+| Elemento | Valor |
+|---|---|
+| Topic | `orders.events` |
+| Key | `orderId` |
+| Particiones | 3 |
+| Replicación | 1 |
+| Retención | `604800000` ms (7 días) |
+| Envelope | `eventId`, `eventType`, `occurredAt`, `orderId`, `tenantId` + payload |
+
+Consumidores independientes sobre el mismo log:
+
+| Consumer group | Servicio | Uso |
+|---|---|---|
+| `analytics.timeline` | `analytics-api` | Timeline por pedido |
+| `analytics.metrics` | `analytics-api` | Métricas de ventas |
+| `notifications.feed` | `notifications-api` | Feed en vivo del vendedor (SSE) |
+
+`order-api` publica `order.placed` desde su outbox a Kafka y mantiene la publicación a RabbitMQ
+para el comando de stock. `notifications-api` entrega además la notificación out-of-band desde
+RabbitMQ `seller.notify`; el feed y la notificación no comparten canal, para no duplicar la misma
+entrega. `make deploy` espera Kafka y el `Job` `kafka-topology` antes de iniciar las aplicaciones.
 
 ---
 

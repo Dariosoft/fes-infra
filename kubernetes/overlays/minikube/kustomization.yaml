@@ -26,6 +26,10 @@ patches:
   - path: patches/order-api/live.yaml
   - path: patches/payment-api/debug.yaml
   - path: patches/payment-api/live.yaml
+  - path: patches/analytics-api/debug.yaml
+  - path: patches/analytics-api/live.yaml
+  - path: patches/notifications-api/debug.yaml
+  - path: patches/notifications-api/live.yaml
   - path: patches/panel-api/env-patch.yaml
   - path: patches/panel-api/image-pull.yaml
   - path: patches/panel-api/live.yaml

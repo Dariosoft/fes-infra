@@ -4,3 +4,5 @@ metadata: {name: panel-api-config, namespace: apps}
 data:
   PANEL_PUBLIC_ORIGIN: https://panel.REPLACE_BASE_DOMAIN
   ACCOUNTS_PUBLIC_BASE_URL: https://api.REPLACE_BASE_DOMAIN
+  ANALYTICS_API_BASE_URL: http://analytics-api.apps.svc.cluster.local:8080
+  NOTIFICATIONS_API_BASE_URL: http://notifications-api.apps.svc.cluster.local:8080

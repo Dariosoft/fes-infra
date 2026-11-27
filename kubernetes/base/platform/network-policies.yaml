@@ -12,5 +12,6 @@ spec:
         - {protocol: TCP, port: 5432}  # PostgreSQL
         - {protocol: TCP, port: 5672}  # RabbitMQ AMQP
         - {protocol: TCP, port: 9000}  # MinIO S3 API
+        - {protocol: TCP, port: 9092}  # Kafka PLAINTEXT
     - from:
         - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: observability}}

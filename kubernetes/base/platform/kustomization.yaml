@@ -4,5 +4,7 @@ resources:
   - postgresql.yaml
   - rabbitmq.yaml
   - rabbitmq-topology.yaml
+  - kafka.yaml
+  - kafka-topology.yaml
   - minio.yaml
   - network-policies.yaml

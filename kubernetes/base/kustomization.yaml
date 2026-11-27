@@ -7,6 +7,8 @@ resources:
   - catalog-api
   - order-api
   - payment-api
+  - analytics-api
+  - notifications-api
   - client-web
   - panel-api
   - panel-web
