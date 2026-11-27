@@ -209,6 +209,10 @@ Consumidores independientes sobre el mismo log:
 | `analytics.metrics` | `analytics-api` | Métricas de ventas |
 | `notifications.feed` | `notifications-api` | Feed en vivo del vendedor (SSE) |
 
+Las bases `analytics` y `notifications` se crean en el init de PostgreSQL, que **solo corre en un
+volumen nuevo**. Si el PVC `data-postgresql-0` ya existe, hay que recrear el volumen o crear a mano
+los usuarios y bases antes de desplegar los servicios nuevos.
+
 `order-api` publica `order.placed` desde su outbox a Kafka y mantiene la publicación a RabbitMQ
 para el comando de stock. `notifications-api` entrega además la notificación out-of-band desde
 RabbitMQ `seller.notify`; el feed y la notificación no comparten canal, para no duplicar la misma
