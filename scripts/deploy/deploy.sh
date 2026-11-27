@@ -97,7 +97,7 @@ wait_rollout observability deployment/loki 300s
 wait_rollout observability deployment/tempo 300s
 wait_rollout observability deployment/grafana 300s
 for service in "${services[@]}"; do
-  wait_rollout apps "deployment/${service}" 600s
+  wait_rollout apps "deployment/${service}" 900s
 done
 
 log_info "Minikube is serving the mounted checkouts."

@@ -27,8 +27,8 @@ data:
       --partitions 3 \
       --replication-factor 1
 
-    /opt/kafka/bin/kafka-topics.sh --bootstrap-server "${BROKER}" \
-      --alter --topic "${TOPIC}" \
+    /opt/kafka/bin/kafka-configs.sh --bootstrap-server "${BROKER}" \
+      --alter --entity-type topics --entity-name "${TOPIC}" \
       --add-config retention.ms=604800000,cleanup.policy=delete
 
     /opt/kafka/bin/kafka-topics.sh --bootstrap-server "${BROKER}" --describe --topic "${TOPIC}"
